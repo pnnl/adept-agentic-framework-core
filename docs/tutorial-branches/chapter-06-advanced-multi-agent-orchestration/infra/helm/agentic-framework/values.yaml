@@ -43,14 +43,14 @@ global:
 # -- Configuration for Kubernetes image pull secrets.
 # This secret must be created manually in the target namespace (e.g., 'class').
 # Example command:
-# kubectl create secret docker-registry my-registry-secret \
-#   --docker-server=tanuki-registry.pnnl.gov \
+# kubectl create secret docker-registry ghcr-secret \
+#   --docker-server=ghcr.io \
 #   --docker-username=<your-username> \
 #   --docker-password=<your-password> \
 #   --docker-email=<your-email> \
 #   --namespace class
 imagePullSecrets: # <--- NEW SECTION FOR IMAGE PULL SECRETS
-  - name: my-registry-secret # Name of the Kubernetes secret (e.g., 'my-registry-secret')
+  - name: ghcr-secret # Name of the Kubernetes secret (e.g., 'ghcr-secret')
 
 # -- Secret values for the application.
 # It is strongly recommended to manage secrets outside of values.yaml.
@@ -70,7 +70,7 @@ secrets:
 mcp_server:
   enabled: true
   image:
-    repository: tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-mcp_server # <--- UPDATED REPOSITORY
+    repository: ghcr.io/pnnl/adept-agentic-framework-core/mcp_server # <--- UPDATED REPOSITORY
   service:
     type: ClusterIP
     port: 8080
@@ -79,7 +79,7 @@ mcp_server:
 streamlit_app:
   enabled: true
   image:
-    repository: tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-streamlit_app # <--- UPDATED REPOSITORY
+    repository: ghcr.io/pnnl/adept-agentic-framework-core/streamlit_app # <--- UPDATED REPOSITORY
   service:
     type: ClusterIP
     port: 8501
@@ -88,7 +88,7 @@ streamlit_app:
 hpc_mcp_server:
   enabled: true
   image:
-    repository: tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-hpc_mcp_server # <--- UPDATED REPOSITORY
+    repository: ghcr.io/pnnl/adept-agentic-framework-core/hpc_mcp_server # <--- UPDATED REPOSITORY
   service:
     type: ClusterIP
     port: 8081
@@ -97,7 +97,7 @@ hpc_mcp_server:
 sandbox_mcp_server:
   enabled: true
   image:
-    repository: tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-sandbox_mcp_server # <--- UPDATED REPOSITORY
+    repository: ghcr.io/pnnl/adept-agentic-framework-core/sandbox_mcp_server # <--- UPDATED REPOSITORY
   service:
     type: ClusterIP
     port: 8082

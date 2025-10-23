@@ -82,76 +82,13 @@ Before you begin, ensure you have the following installed:
 
 ### Project Setup
 
-1.  **SSH Key Setup for Git (Crucial for `tanuki-data.pnnl.gov`)**:
-    Accessing `git@tanuki-data.pnnl.gov` requires SSH key authentication.
-
-    *   **Check for existing SSH keys**:
-        ```bash
-        ls -al ~/.ssh/id_*.pub
-        ```
-        If you see files like `id_rsa.pub` or `id_ed25519.pub`, you likely have keys.
-
-    *   **Generate new SSH keys (if you don't have them)**:
-        ```bash
-        ssh-keygen -t ed25519 -C "your_email@example.com"
-        # Or, for an RSA key:
-        # ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-        ```
-        Press Enter to accept default file locations and passphrase (or set one if desired).
-
-    *   **Add your SSH public key to `tanuki-data.pnnl.gov`**:
-        This is the most common reason for permission errors.
-        1.  Copy your public key to the clipboard. For example, if using `ed25519`:
-            ```bash
-            cat ~/.ssh/id_ed25519.pub
-            ```
-            Select and copy the entire output.
-        2.  Log in to the `tanuki-data.pnnl.gov` GitLab instance.
-        3.  Navigate to your user profile settings (usually top right corner -> Edit profile or Settings).
-        4.  Find the "SSH Keys" section.
-        5.  Paste your copied public key into the "Key" field and give it a title (e.g., "My Work Laptop").
-        6.  Click "Add key".
-
-    *   **Configure `~/.ssh/config` (Recommended)**:
-        Create or edit `~/.ssh/config` and add:
-        ```ssh config
-        Host tanuki-data.pnnl.gov
-            Hostname tanuki-data.pnnl.gov
-            User git
-            # PreferredAuthentications publickey
-            # IdentityFile ~/.ssh/id_ed25519  # Or ~/.ssh/id_rsa if you use RSA
-        ```
-        Replace `IdentityFile` with the path to your specific private key if it's not the default.
-
-    *   **Ensure SSH Agent is running and has your key**:
-        ```bash
-        eval "$(ssh-agent -s)" # Start the agent if not running
-        ssh-add ~/.ssh/id_ed25519 # Or ~/.ssh/id_rsa
-        # Check loaded keys:
-        ssh-add -l
-        ```
-
-    *   **Check File Permissions**:
-        Incorrect permissions can prevent SSH from using your keys.
-        ```bash
-        chmod 700 ~/.ssh
-        chmod 600 ~/.ssh/id_ed25519 # Or your private key file
-        chmod 644 ~/.ssh/id_ed25519.pub # Or your public key file
-        ```
-
-    *   **Test SSH Connection**:
-        ```bash
-        ssh -T git@tanuki-data.pnnl.gov
-        ```
-        You should see a welcome message from GitLab if successful. If it mentions "Permission denied (publickey)", re-check that your public key is correctly added to the server.
-
-2.  **Clone the Repository**:
+1.  **Clone the Repository**:
     *   If using WSL, open your WSL terminal.
     *   Navigate to where you want to store the project (e.g., `cd ~`).
     *   Clone the repository:
         ```bash
-        git clone git@tanuki-data.pnnl.gov:cloudhub/agentic-framework.git
-        cd agentic-framework
+        git clone https://github.com/pnnl/adept-agentic-framework-core.git
+        cd adept-agentic-framework-core
         ```
 
 2.  **Open in VS Code**:

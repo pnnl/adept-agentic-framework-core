@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# NOTE: This script was originally configured for internal PNNL GitLab/Tanuki registry.
+# It has been updated to use GitHub Container Registry (ghcr.io).
+# You will need to authenticate with GitHub (gh auth login) before using this script.
+# See: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+
+
 # Define the target registry
-REGISTRY="tanuki-registry.pnnl.gov/cloudhub/agentic-framework"
+REGISTRY="ghcr.io/pnnl/adept-agentic-framework-core"
 
 # --- Main script execution ---
 
