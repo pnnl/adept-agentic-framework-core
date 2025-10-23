@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# NOTE: This script is configured for internal PNNL EMSL Kubernetes environment.
+# Public users should refer to the main Helm deployment documentation.
+# Registry references have been updated to ghcr.io in values.yaml files.
+
+
 # For safety, ensure this script is run with bash with -e option
 # We'll handle errors more gracefully within the script for better user experience.
 # set -euo pipefail
@@ -23,9 +28,9 @@ HELM_CHART_PATH="./infra/helm/agentic-framework/"
 VALUES_FILE="./infra/helm/agentic-framework/values.yaml"
 RELEASE_NAME="my-agentic-release"
 NAMESPACE="class"
-REGISTRY_SERVER="tanuki-registry.pnnl.gov"
+REGISTRY_SERVER="ghcr.io"
 LOG_FILE="./helm-manage.log"
-REGISTRY_SECRET_NAME="my-registry-secret" # Must match 'imagePullSecrets.name' in values.yaml
+REGISTRY_SECRET_NAME="ghcr-secret" # Must match 'imagePullSecrets.name' in values.yaml
 
 # --- .env Secret Configuration ---
 ENV_FILE="./.env" # Path to your .env file
@@ -38,10 +43,10 @@ PVC_WAIT_INTERVAL=10 # seconds
 # --- REQUIRED IMAGES IN REGISTRY ---
 # List all the images your Helm chart expects to pull from the registry
 REQUIRED_IMAGES=(
-    "tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-hpc_mcp_server:latest"
-    "tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-mcp_server:latest"
-    "tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-streamlit_app:latest"
-    "tanuki-registry.pnnl.gov/cloudhub/agentic-framework/agentic_framework-sandbox_mcp_server:latest"
+    "ghcr.io/pnnl/adept-agentic-framework-core/agentic_framework-hpc_mcp_server:latest"
+    "ghcr.io/pnnl/adept-agentic-framework-core/agentic_framework-mcp_server:latest"
+    "ghcr.io/pnnl/adept-agentic-framework-core/agentic_framework-streamlit_app:latest"
+    "ghcr.io/pnnl/adept-agentic-framework-core/agentic_framework-sandbox_mcp_server:latest"
 )
 
 # --- Helper Functions ---
