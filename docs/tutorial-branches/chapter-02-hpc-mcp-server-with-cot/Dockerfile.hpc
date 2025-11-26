@@ -14,14 +14,13 @@ WORKDIR ${HOME}
 # Set DEBIAN_FRONTEND to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies: Java (for Nextflow), curl, unzip, procps, build-essential (for some Python packages)
+# Install system dependencies: curl, unzip, procps, build-essential (for some Python packages)
 # Includes GPG fix for apt-get
 RUN apt-get update && \
     apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg && \
     # GPG fix steps (simplified from other Dockerfiles, assuming base image is relatively up-to-date)
     apt-get clean && rm -rf /var/lib/apt/lists/* && apt-get update && \
     apt-get install -y --no-install-recommends \
-    openjdk-17-jre-headless \
     curl \
     unzip \
     procps \
