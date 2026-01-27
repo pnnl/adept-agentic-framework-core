@@ -43,6 +43,7 @@ services:
       dockerfile: Dockerfile
       target: streamlit_app
     container_name: agentic_streamlit_app_ch00
+    user: "0:0"  # Run as root to allow writing to volumes
     ports:
       - "8501:8501"
     volumes:

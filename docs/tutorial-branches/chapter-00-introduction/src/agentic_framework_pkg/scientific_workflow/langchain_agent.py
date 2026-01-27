@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional, TypedDict, Annotated
 import json  # Added json import
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_openai.chat_models.base import ChatOpenAI as BaseChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_google_vertexai import ChatVertexAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -59,28 +60,42 @@ class ScientificWorkflowAgent:
             get_mcp_sql_schema_tool_langchain(),
             get_mcp_rag_tool_langchain(),
             get_mcp_list_files_tool_langchain(),
-            get_mcp_ingest_data_tool_langchain(),
+            # Note: ingest_data tool commented out due to API restrictions
+            # get_mcp_ingest_data_tool_langchain(),
         ]
         self.app = self._build_langgraph_app()
 
     async def _get_llm_instance(self):
-        model_name = str(self._llm_config["model_name"]).lower()
-        logger.info(f"Using model {model_name} for chat agent")
-
-        # Check for internal LLM provider first
+        # Check for internal LLM provider FIRST (before reading model_name)
         if (
             self._llm_config["internal_llm_api_key"]
             and self._llm_config["internal_llm_base_url"]
+            and self._llm_config["internal_llm_model"]
         ):
-            internal_model = self._llm_config["internal_llm_model"] or model_name
+            internal_model = self._llm_config["internal_llm_model"]
+            internal_base_url = self._llm_config["internal_llm_base_url"]
+            internal_api_key = self._llm_config["internal_llm_api_key"]
+
             logger.info(
-                f"Using internal LLM provider: {self._llm_config['internal_llm_base_url']} with model {internal_model}"
+                f"Using internal LLM provider: {internal_base_url} with model {internal_model}"
             )
+
+            # Reasoning models need higher max_tokens for internal reasoning + response
+            max_tokens = (
+                4000
+                if "o4-mini" in internal_model or "o3-mini" in internal_model
+                else 1000
+            )
+
             return ChatOpenAI(
                 model=internal_model,
-                openai_api_key=self._llm_config["internal_llm_api_key"],
-                openai_api_base=self._llm_config["internal_llm_base_url"],
+                api_key=internal_api_key,
+                base_url=internal_base_url,
+                max_tokens=max_tokens,
             )
+
+        model_name = str(self._llm_config["model_name"]).lower()
+        logger.info(f"Using model {model_name} for chat agent")
 
         if model_name.startswith("ollama/"):
             ollama_model = model_name.split("/")[1]
@@ -236,9 +251,25 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
 
         # Parse the response to determine next_action and any tool calls
         tool_calls = response.tool_calls
+        logger.debug(f"LLM response tool_calls: {tool_calls}")
+        logger.debug(f"LLM response content: {response.content}")
+
+        # Check if schema was already retrieved and avoid calling it again
+        schema_info = state.get("schema_info")
+        if schema_info and tool_calls and tool_calls[0]["name"] == "get_sql_schema":
+            logger.warning(
+                "Schema already retrieved, but LLM wants to call get_sql_schema again. Ending instead."
+            )
+            return {
+                **state,
+                "next_action": "end",
+                "agent_outcome": f"Based on the schema information already retrieved, I can see the database structure. However, I need a more specific query to proceed. Please ask a specific question about the data.",
+            }
+
         if tool_calls:
             # Assuming the LLM will call one of our tools
             tool_call = tool_calls[0]
+            logger.info(f"Decision Node: Next action is {tool_call['name']}")
             if tool_call["name"] == "execute_sql":
                 return {
                     **state,
@@ -253,7 +284,13 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
                 return {**state, "next_action": "list_files"}
 
         # If no tool call, assume LLM is providing a direct answer or needs to end
-        return {**state, "next_action": "end", "agent_outcome": response.content}
+        logger.info("Decision Node: No tool call, ending with direct response")
+        return {
+            **state,
+            "next_action": "end",
+            "agent_outcome": response.content
+            or "I understand your question but need more specific information to proceed.",
+        }
 
     def _parse_tool_result(self, tool_result: Any) -> Any:
         """Parses the tool result, handling nested lists and TextContent objects."""
@@ -302,10 +339,11 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
                     "next_action": "end",
                 }
 
-        # Otherwise, add the schema to the history and continue.
+        # Otherwise, add the schema to the history and state, then continue.
         if schema_info:
             return {
                 **state,
+                "schema_info": schema_info,  # Store schema in state to avoid re-fetching
                 "chat_history": state.get("chat_history", [])
                 + [AIMessage(content=f"Database Schema: {schema_info}")],
                 "next_action": "continue",
@@ -365,10 +403,15 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
         parsed_result = self._parse_tool_result(tool_result)
 
         if parsed_result and parsed_result.get("documents"):
-            rag_docs = "\n\n".join(parsed_result["documents"])
+            # ChromaDB returns documents as list of lists [[doc1, doc2, ...]]. Flatten it.
+            documents = parsed_result["documents"]
+            if documents and isinstance(documents[0], list):
+                documents = documents[0]  # Get first (and only) query's results
+
+            rag_docs = "\n\n".join(str(doc) for doc in documents)
             return {
                 **state,
-                "rag_documents": parsed_result["documents"],
+                "rag_documents": documents,
                 "agent_outcome": f"Relevant Information from CSV: {rag_docs}",
             }
         else:
