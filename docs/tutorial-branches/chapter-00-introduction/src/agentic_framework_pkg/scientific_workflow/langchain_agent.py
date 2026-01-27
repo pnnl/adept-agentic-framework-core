@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Any, Optional, TypedDict, Annotated
-import json # Added json import
+import json  # Added json import
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
@@ -11,10 +11,17 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import StateGraph, END
 
-from .mcp_langchain_tools import get_mcp_sql_tool_langchain, get_mcp_sql_schema_tool_langchain, get_mcp_rag_tool_langchain, get_mcp_list_files_tool_langchain, get_mcp_ingest_data_tool_langchain
+from .mcp_langchain_tools import (
+    get_mcp_sql_tool_langchain,
+    get_mcp_sql_schema_tool_langchain,
+    get_mcp_rag_tool_langchain,
+    get_mcp_list_files_tool_langchain,
+    get_mcp_ingest_data_tool_langchain,
+)
 from ..core.logger_config import get_logger
 
 logger = get_logger(__name__)
+
 
 class AgentState(TypedDict):
     chat_history: List[BaseMessage]
@@ -25,61 +32,105 @@ class AgentState(TypedDict):
     next_action: str
     agent_outcome: Any
 
+
 logger = get_logger(__name__)
+
 
 class ScientificWorkflowAgent:
     def __init__(self):
         self._llm_config = {
-            "model_name": os.getenv("STREAMLIT_DEFAULT_MODEL", "ollama/mistral"), # Use STREAMLIT_DEFAULT_MODEL
-            "ollama_base_url": os.getenv("OLLAMA_API_BASE_URL"),
+            "model_name": os.getenv(
+                "STREAMLIT_DEFAULT_MODEL", "ollama/mistral"
+            ),  # Use STREAMLIT_DEFAULT_MODEL
+            "ollama_base_url": os.getenv("OLLAMA_API_BASE_URL")
+            or os.getenv("OLLAMA_API_BASE"),
             "azure_api_version": os.getenv("AZURE_API_VERSION"),
             "azure_api_key": os.getenv("AZURE_API_KEY") or os.getenv("OPENAI_API_KEY"),
-            "azure_api_base": os.getenv("AZURE_API_BASE"), # Add Azure API Base
+            "azure_api_base": os.getenv("AZURE_API_BASE"),  # Add Azure API Base
             "google_project_id": os.getenv("GOOGLE_PROJECT_ID"),
             "google_location": os.getenv("GOOGLE_LOCATION"),
+            # Internal LLM provider configuration
+            "internal_llm_api_key": os.getenv("INTERNAL_LLM_API_KEY"),
+            "internal_llm_base_url": os.getenv("INTERNAL_LLM_BASE_URL"),
+            "internal_llm_model": os.getenv("INTERNAL_LLM_MODEL"),
         }
-        self.tools = [get_mcp_sql_tool_langchain(), get_mcp_sql_schema_tool_langchain(), get_mcp_rag_tool_langchain(), get_mcp_list_files_tool_langchain(), get_mcp_ingest_data_tool_langchain()]
+        self.tools = [
+            get_mcp_sql_tool_langchain(),
+            get_mcp_sql_schema_tool_langchain(),
+            get_mcp_rag_tool_langchain(),
+            get_mcp_list_files_tool_langchain(),
+            get_mcp_ingest_data_tool_langchain(),
+        ]
         self.app = self._build_langgraph_app()
 
     async def _get_llm_instance(self):
         model_name = str(self._llm_config["model_name"]).lower()
         logger.info(f"Using model {model_name} for chat agent")
-        
+
+        # Check for internal LLM provider first
+        if (
+            self._llm_config["internal_llm_api_key"]
+            and self._llm_config["internal_llm_base_url"]
+        ):
+            internal_model = self._llm_config["internal_llm_model"] or model_name
+            logger.info(
+                f"Using internal LLM provider: {self._llm_config['internal_llm_base_url']} with model {internal_model}"
+            )
+            return ChatOpenAI(
+                model=internal_model,
+                openai_api_key=self._llm_config["internal_llm_api_key"],
+                openai_api_base=self._llm_config["internal_llm_base_url"],
+            )
+
         if model_name.startswith("ollama/"):
             ollama_model = model_name.split("/")[1]
             ollama_base_url = self._llm_config["ollama_base_url"]
             return ChatOllama(
-                model=ollama_model,
-                base_url=ollama_base_url,
-                temperature=0
+                model=ollama_model, base_url=ollama_base_url, temperature=0
             )
-        elif model_name.startswith("azure/") or model_name.startswith("4o-") or model_name.startswith("o4-") or model_name.startswith("o3") or model_name.startswith("gpt"):
+        elif (
+            model_name.startswith("azure/")
+            or model_name.startswith("4o-")
+            or model_name.startswith("o4-")
+            or model_name.startswith("o3")
+            or model_name.startswith("gpt")
+        ):
             azure_api_base = self._llm_config["azure_api_base"]
             azure_api_version = self._llm_config["azure_api_version"]
             azure_api_key = self._llm_config["azure_api_key"]
 
             if not azure_api_base or not azure_api_version or not azure_api_key:
-                logger.warning("Azure OpenAI Chat Model requested but AZURE_API_BASE/VERSION/KEY are not fully set. Falling back to OpenAI Chat Model if applicable.")
-                return ChatOpenAI(model=model_name) # Removed temperature=0
+                logger.warning(
+                    "Azure OpenAI Chat Model requested but AZURE_API_BASE/VERSION/KEY are not fully set. Falling back to OpenAI Chat Model if applicable."
+                )
+                return ChatOpenAI(model=model_name)  # Removed temperature=0
 
             # Check if the base URL already contains the deployment path
             if "/deployments/" in azure_api_base.lower():
-                logger.info(f"Loading AzureChatOpenAI with full endpoint: {azure_api_base}")
+                logger.info(
+                    f"Loading AzureChatOpenAI with full endpoint: {azure_api_base}"
+                )
                 return AzureChatOpenAI(
                     azure_endpoint=azure_api_base,
                     api_version=azure_api_version,
-                    api_key=azure_api_key
-                ) # Removed temperature=0
+                    api_key=azure_api_key,
+                )  # Removed temperature=0
             else:
                 # Assume model_name is the deployment name if base URL is just the resource endpoint
-                azure_deployment = model_name.split("/")[1] if model_name.startswith("azure/") else model_name
-                logger.info(f"Loading AzureChatOpenAI with deployment: {azure_deployment}, base_url: {azure_api_base}")
+                azure_deployment = (
+                    model_name.split("/")[1]
+                    if model_name.startswith("azure/")
+                    else model_name
+                )
+                logger.info(
+                    f"Loading AzureChatOpenAI with deployment: {azure_deployment}, base_url: {azure_api_base}"
+                )
                 return AzureChatOpenAI(
                     azure_deployment=azure_deployment,
                     azure_endpoint=azure_api_base,
                     api_version=azure_api_version,
-                    api_key=azure_api_key
-                ) # Removed temperature=0
+                    api_key=azure_api_key,
+                )  # Removed temperature=0
         elif model_name.startswith("google/"):
             google_model = model_name.split("/")[1]
             google_project_id = self._llm_config["google_project_id"]
@@ -88,10 +139,10 @@ class ScientificWorkflowAgent:
                 model_name=google_model,
                 project=google_project_id,
                 location=google_location,
-                temperature=0
+                temperature=0,
             )
         else:
-            return ChatOpenAI(model=model_name) # Removed temperature=0
+            return ChatOpenAI(model=model_name)  # Removed temperature=0
 
     def _build_langgraph_app(self):
         workflow = StateGraph(AgentState)
@@ -101,7 +152,9 @@ class ScientificWorkflowAgent:
         workflow.add_node("get_sql_schema", self._call_get_sql_schema_tool_node)
         workflow.add_node("execute_sql", self._call_execute_sql_tool_node)
         workflow.add_node("query_csv_rag", self._call_query_csv_rag_tool_node)
-        workflow.add_node("list_files", self._call_list_files_tool_node) # Add list_files node
+        workflow.add_node(
+            "list_files", self._call_list_files_tool_node
+        )  # Add list_files node
 
         # Set entry point
         workflow.set_entry_point("llm_decision")
@@ -110,26 +163,23 @@ class ScientificWorkflowAgent:
         workflow.add_conditional_edges(
             "get_sql_schema",
             self._decide_schema_next_step,
-            {
-                "continue": "llm_decision",
-                "end": END
-            }
+            {"continue": "llm_decision", "end": END},
         )
-        workflow.add_edge("execute_sql", END) # End after SQL execution
-        workflow.add_edge("query_csv_rag", END) # End after RAG query
-        workflow.add_edge("list_files", END) # End after list_files execution
+        workflow.add_edge("execute_sql", END)  # End after SQL execution
+        workflow.add_edge("query_csv_rag", END)  # End after RAG query
+        workflow.add_edge("list_files", END)  # End after list_files execution
 
         # Define conditional edges from llm_decision
         workflow.add_conditional_edges(
             "llm_decision",
             self._decide_next_step,
             {
-                "list_files": "list_files", # Add this condition
+                "list_files": "list_files",  # Add this condition
                 "get_sql_schema": "get_sql_schema",
                 "execute_sql": "execute_sql",
                 "query_csv_rag": "query_csv_rag",
-                "end": END # If LLM decides to end or provide a direct answer
-            }
+                "end": END,  # If LLM decides to end or provide a direct answer
+            },
         )
 
         return workflow.compile()
@@ -163,11 +213,13 @@ If `execute_sql` is the next action, provide the SQL query in the `sql_query` fi
 If `query_csv_rag` is the next action, the `user_input` will be used as the query.
 If `end` is the next action, provide the final answer in the `agent_outcome` field.
 """
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-        ])
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "{input}"),
+            ]
+        )
 
         # Get a fresh LLM instance for this call
         llm_instance = await self._get_llm_instance()
@@ -178,25 +230,28 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
         # Create a chain to get the LLM's decision
         decision_chain = prompt_template | llm_with_tools
 
-        response = await decision_chain.ainvoke({
-            "input": user_input,
-            "chat_history": current_chat_history
-        })
-        
+        response = await decision_chain.ainvoke(
+            {"input": user_input, "chat_history": current_chat_history}
+        )
+
         # Parse the response to determine next_action and any tool calls
         tool_calls = response.tool_calls
         if tool_calls:
             # Assuming the LLM will call one of our tools
             tool_call = tool_calls[0]
             if tool_call["name"] == "execute_sql":
-                return {**state, "next_action": "execute_sql", "sql_query": tool_call["args"]["query"]}
+                return {
+                    **state,
+                    "next_action": "execute_sql",
+                    "sql_query": tool_call["args"]["query"],
+                }
             elif tool_call["name"] == "get_sql_schema":
                 return {**state, "next_action": "get_sql_schema"}
             elif tool_call["name"] == "query_csv_rag":
                 return {**state, "next_action": "query_csv_rag"}
             elif tool_call["name"] == "list_files":
                 return {**state, "next_action": "list_files"}
-        
+
         # If no tool call, assume LLM is providing a direct answer or needs to end
         return {**state, "next_action": "end", "agent_outcome": response.content}
 
@@ -207,10 +262,10 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
         else:
             content = tool_result
 
-        if hasattr(content, 'content'):
+        if hasattr(content, "content"):
             content = content.content
-        
-        if hasattr(content, 'text'):
+
+        if hasattr(content, "text"):
             content = content.text
 
         try:
@@ -222,70 +277,125 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
 
     async def _call_get_sql_schema_tool_node(self, state: AgentState) -> AgentState:
         logger.info("Tool Node: Calling get_sql_schema tool...")
-        tool_result = await self.tools[1].ainvoke({}) # get_mcp_sql_schema_tool_langchain is at index 1
+        tool_result = await self.tools[1].ainvoke(
+            {}
+        )  # get_mcp_sql_schema_tool_langchain is at index 1
         parsed_result = self._parse_tool_result(tool_result)
 
         schema_info = parsed_result.get("schemas") if parsed_result else None
-        
+
         # If the user asked for the schema directly, end the turn.
-        if any(keyword in state.get("user_input", "").lower() for keyword in ["tables", "schema"]):
+        if any(
+            keyword in state.get("user_input", "").lower()
+            for keyword in ["tables", "schema"]
+        ):
             if schema_info:
-                return {**state, "agent_outcome": f"Database Schema:\n{schema_info}", "next_action": "end"}
+                return {
+                    **state,
+                    "agent_outcome": f"Database Schema:\n{schema_info}",
+                    "next_action": "end",
+                }
             else:
-                return {**state, "agent_outcome": "There are no tables in the database yet.", "next_action": "end"}
-        
+                return {
+                    **state,
+                    "agent_outcome": "There are no tables in the database yet.",
+                    "next_action": "end",
+                }
+
         # Otherwise, add the schema to the history and continue.
         if schema_info:
-            return {**state, "chat_history": state.get("chat_history", []) + [AIMessage(content=f"Database Schema: {schema_info}")], "next_action": "continue"}
+            return {
+                **state,
+                "chat_history": state.get("chat_history", [])
+                + [AIMessage(content=f"Database Schema: {schema_info}")],
+                "next_action": "continue",
+            }
         else:
-            return {**state, "chat_history": state.get("chat_history", []) + [AIMessage(content="Could not retrieve database schema.")], "next_action": "continue"}
+            return {
+                **state,
+                "chat_history": state.get("chat_history", [])
+                + [AIMessage(content="Could not retrieve database schema.")],
+                "next_action": "continue",
+            }
 
     def _decide_schema_next_step(self, state: AgentState) -> str:
         logger.info(f"Schema Decision Node: Next action is {state.get('next_action')}")
         return state.get("next_action", "end")
 
     async def _call_execute_sql_tool_node(self, state: AgentState) -> AgentState:
-        logger.info(f"Tool Node: Calling execute_sql tool with query: {state.get('sql_query')}")
+        logger.info(
+            f"Tool Node: Calling execute_sql tool with query: {state.get('sql_query')}"
+        )
         sql_query = state.get("sql_query")
         if not sql_query:
-            return {**state, "agent_outcome": "Error: No SQL query provided to execute.", "next_action": "end"}
+            return {
+                **state,
+                "agent_outcome": "Error: No SQL query provided to execute.",
+                "next_action": "end",
+            }
 
         tool_result = await self.tools[0].ainvoke({"query": sql_query})
         parsed_result = self._parse_tool_result(tool_result)
 
         if parsed_result and parsed_result.get("result"):
-            return {**state, "query_result": parsed_result["result"], "agent_outcome": f"SQL Query Result: {parsed_result['result']}"}
+            return {
+                **state,
+                "query_result": parsed_result["result"],
+                "agent_outcome": f"SQL Query Result: {parsed_result['result']}",
+            }
         else:
-            return {**state, "agent_outcome": f"Error executing SQL query: {parsed_result.get('error', 'Unknown error')}"}
+            return {
+                **state,
+                "agent_outcome": f"Error executing SQL query: {parsed_result.get('error', 'Unknown error')}",
+            }
 
     async def _call_query_csv_rag_tool_node(self, state: AgentState) -> AgentState:
-        logger.info(f"Tool Node: Calling query_csv_rag tool with query: {state.get('user_input')}")
+        logger.info(
+            f"Tool Node: Calling query_csv_rag tool with query: {state.get('user_input')}"
+        )
         user_input = state.get("user_input")
         if not user_input:
-            return {**state, "agent_outcome": "Error: No query provided for RAG.", "next_action": "end"}
+            return {
+                **state,
+                "agent_outcome": "Error: No query provided for RAG.",
+                "next_action": "end",
+            }
 
         tool_result = await self.tools[2].ainvoke({"query": user_input})
         parsed_result = self._parse_tool_result(tool_result)
 
         if parsed_result and parsed_result.get("documents"):
             rag_docs = "\n\n".join(parsed_result["documents"])
-            return {**state, "rag_documents": parsed_result["documents"], "agent_outcome": f"Relevant Information from CSV: {rag_docs}"}
+            return {
+                **state,
+                "rag_documents": parsed_result["documents"],
+                "agent_outcome": f"Relevant Information from CSV: {rag_docs}",
+            }
         else:
-            return {**state, "agent_outcome": "No relevant information found in CSV data."}
+            return {
+                **state,
+                "agent_outcome": "No relevant information found in CSV data.",
+            }
 
     def _decide_next_step(self, state: AgentState) -> str:
         logger.info(f"Decision Node: Next action is {state.get('next_action')}")
         return state.get("next_action", "end")
 
-    async def arun(self, user_input: str, chat_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    async def arun(
+        self, user_input: str, chat_history: Optional[List[Dict[str, str]]] = None
+    ) -> Dict[str, Any]:
         current_chat_history = []
         if chat_history:
             for msg in chat_history:
                 if msg.get("role") == "user":
-                    current_chat_history.append(HumanMessage(content=msg.get("content", "")))
+                    current_chat_history.append(
+                        HumanMessage(content=msg.get("content", ""))
+                    )
                 elif msg.get("role") == "assistant":
-                    current_chat_history.append(AIMessage(content=msg.get("content", "")))
-        
+                    current_chat_history.append(
+                        AIMessage(content=msg.get("content", ""))
+                    )
+
         initial_state = {
             "user_input": user_input,
             "chat_history": current_chat_history,
@@ -293,7 +403,7 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
             "query_result": "",
             "rag_documents": [],
             "next_action": "",
-            "agent_outcome": ""
+            "agent_outcome": "",
         }
 
         logger.info(f"Running Langchain agent with input: {user_input}")
@@ -309,20 +419,29 @@ If `end` is the next action, provide the final answer in the `agent_outcome` fie
 
     async def _call_list_files_tool_node(self, state: AgentState) -> AgentState:
         logger.info("Tool Node: Calling list_files tool...")
-        tool_result = await self.tools[3].ainvoke({}) # get_mcp_list_files_tool_langchain is at index 3
+        tool_result = await self.tools[3].ainvoke(
+            {}
+        )  # get_mcp_list_files_tool_langchain is at index 3
         parsed_result = self._parse_tool_result(tool_result)
 
         files_data = []
         if isinstance(parsed_result, dict) and "files" in parsed_result:
             for doc in parsed_result["files"]:
                 try:
-                    doc_str = doc if isinstance(doc, str) else getattr(doc, 'text', str(doc))
+                    doc_str = (
+                        doc if isinstance(doc, str) else getattr(doc, "text", str(doc))
+                    )
                     files_data.append(json.loads(doc_str))
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.warning(f"Could not parse document: {doc}, error: {e}")
-        
+
         if files_data:
-            file_list = "\n".join([f"- {f['file_name']} (table: {f['table_name']})" for f in files_data])
+            file_list = "\n".join(
+                [f"- {f['file_name']} (table: {f['table_name']})" for f in files_data]
+            )
             return {**state, "agent_outcome": f"Uploaded Files:\n{file_list}"}
         else:
-            return {**state, "agent_outcome": "No files uploaded yet or error listing files."}
+            return {
+                **state,
+                "agent_outcome": "No files uploaded yet or error listing files.",
+            }
