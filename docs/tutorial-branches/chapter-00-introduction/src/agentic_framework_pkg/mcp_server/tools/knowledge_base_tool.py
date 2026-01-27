@@ -1,5 +1,10 @@
 from fastmcp import FastMCP, Context
-from ..state_manager import DATABASE_URL, get_chroma_client, execute_async_sql_query, get_async_table_info
+from ..state_manager import (
+    DATABASE_URL,
+    get_chroma_client,
+    execute_async_sql_query,
+    get_async_table_info,
+)
 from ...core.logger_config import get_logger
 import pandas as pd
 import os
@@ -15,32 +20,37 @@ from ...core.chroma_embedding_function import get_chroma_embedding_function
 
 logger = get_logger(__name__)
 
+
 def register_tools(mcp: FastMCP):
     @mcp.tool()
     async def ingest_data(ctx: Context, file_path: str, table_name: str):
         logger.info(f"Ingesting data from {file_path} into table {table_name}")
         if not os.path.exists(file_path):
             return {"error": f"File not found: {file_path}"}
-        
+
         try:
             file_extension = os.path.splitext(file_path)[1].lower()
             if file_extension == ".csv":
-                df = pd.read_csv(file_path, on_bad_lines='warn')
+                df = pd.read_csv(file_path, on_bad_lines="warn")
+            elif file_extension == ".tsv":
+                df = pd.read_csv(file_path, sep="\t", on_bad_lines="warn")
             elif file_extension in [".xls", ".xlsx"]:
                 df = pd.read_excel(file_path, dtype=object)
             else:
-                return {"error": f"Unsupported file type: {file_extension}. Only .csv, .xls, .xlsx are supported."}
+                return {
+                    "error": f"Unsupported file type: {file_extension}. Only .csv, .tsv, .xls, .xlsx are supported."
+                }
 
             # Sanitize table name
-            table_name = re.sub(r'[^a-zA-Z0-9_]', '', table_name)
+            table_name = re.sub(r"[^a-zA-Z0-9_]", "", table_name)
 
             # Correctly parse the database file path from the DATABASE_URL
             db_path = DATABASE_URL.split("///")[1]
-            
+
             # Let pandas handle the synchronous connection
             with sqlite3.connect(db_path) as con:
-                df.to_sql(table_name, con, if_exists='replace', index=False)
-            
+                df.to_sql(table_name, con, if_exists="replace", index=False)
+
             # Generate text representation for RAG
             table_schema = pd.io.sql.get_schema(df, table_name)
             sample_data = df.head(5).to_string()
@@ -50,27 +60,35 @@ def register_tools(mcp: FastMCP):
             chroma_client = await get_chroma_client()
             chroma_embedding_function = get_chroma_embedding_function()
             csv_rag_collection = chroma_client.get_or_create_collection(
-                name="csv_rag_collection",
-                embedding_function=chroma_embedding_function
+                name="csv_rag_collection", embedding_function=chroma_embedding_function
             )
-            
+
             csv_rag_collection.add(
                 ids=[str(uuid.uuid4())],
                 documents=[rag_text],
-                metadatas=[{"table_name": table_name, "file_path": file_path}]
+                metadatas=[{"table_name": table_name, "file_path": file_path}],
             )
 
             # Record file upload in ChromaDB
             file_history_collection = chroma_client.get_or_create_collection(
-                name="file_history",
-                embedding_function=chroma_embedding_function
+                name="file_history", embedding_function=chroma_embedding_function
             )
             file_history_collection.add(
                 ids=[str(uuid.uuid4())],
-                documents=[json.dumps({"file_name": os.path.basename(file_path), "table_name": table_name})]
+                documents=[
+                    json.dumps(
+                        {
+                            "file_name": os.path.basename(file_path),
+                            "table_name": table_name,
+                        }
+                    )
+                ],
             )
 
-            return {"status": "success", "message": f"Successfully ingested {len(df)} rows into table {table_name} and updated RAG knowledge base."}
+            return {
+                "status": "success",
+                "message": f"Successfully ingested {len(df)} rows into table {table_name} and updated RAG knowledge base.",
+            }
         except Exception as e:
             logger.error(f"Error ingesting data: {e}", exc_info=True)
             return {"error": str(e)}
@@ -92,13 +110,9 @@ def register_tools(mcp: FastMCP):
             chroma_client = await get_chroma_client()
             chroma_embedding_function = get_chroma_embedding_function()
             notes_collection = chroma_client.get_or_create_collection(
-                name="notes",
-                embedding_function=chroma_embedding_function
+                name="notes", embedding_function=chroma_embedding_function
             )
-            notes_collection.add(
-                ids=[str(uuid.uuid4())],
-                documents=[note]
-            )
+            notes_collection.add(ids=[str(uuid.uuid4())], documents=[note])
             return {"status": "success"}
         except Exception as e:
             logger.error(f"Error saving note: {e}", exc_info=True)
@@ -111,8 +125,7 @@ def register_tools(mcp: FastMCP):
             chroma_client = await get_chroma_client()
             chroma_embedding_function = get_chroma_embedding_function()
             notes_collection = chroma_client.get_or_create_collection(
-                name="notes",
-                embedding_function=chroma_embedding_function
+                name="notes", embedding_function=chroma_embedding_function
             )
             notes = notes_collection.get()
             return {"notes": notes["documents"]}
@@ -127,8 +140,7 @@ def register_tools(mcp: FastMCP):
             chroma_client = await get_chroma_client()
             chroma_embedding_function = get_chroma_embedding_function()
             file_history_collection = chroma_client.get_or_create_collection(
-                name="file_history",
-                embedding_function=chroma_embedding_function
+                name="file_history", embedding_function=chroma_embedding_function
             )
             files = file_history_collection.get()
             return {"files": files["documents"]}
@@ -153,16 +165,15 @@ def register_tools(mcp: FastMCP):
             chroma_client = await get_chroma_client()
             chroma_embedding_function = get_chroma_embedding_function()
             csv_rag_collection = chroma_client.get_or_create_collection(
-                name="csv_rag_collection",
-                embedding_function=chroma_embedding_function
+                name="csv_rag_collection", embedding_function=chroma_embedding_function
             )
-            
+
             # Embed the query manually
             embedded_query = chroma_embedding_function([query])
 
             results = csv_rag_collection.query(
                 query_embeddings=embedded_query,
-                n_results=5 # Retrieve top 5 relevant documents
+                n_results=5,  # Retrieve top 5 relevant documents
             )
             return {"status": "success", "documents": results["documents"]}
         except Exception as e:
