@@ -45,6 +45,9 @@ from .mcp_langchain_tools import (
     get_mcp_search_pubchem_by_name_tool_langchain,  # Import PubChem search tool factory
     get_mcp_get_pubchem_compound_properties_tool_langchain,  # Import PubChem properties tool factory
     get_mcp_list_uploaded_files_tool_langchain,  # Import new tool for listing files
+    get_mcp_test_hpc_connection_tool_langchain,  # Import HPC connection test tool
+    get_mcp_submit_slurm_job_tool_langchain,  # Import HPC job submission tool
+    get_mcp_check_slurm_job_status_tool_langchain,  # Import HPC job status tool
 )
 from ..logger_config import get_logger  # Use centralized logger
 
@@ -198,6 +201,15 @@ class ScientificWorkflowAgent:
             get_mcp_list_uploaded_files_tool_langchain(
                 mcp_session_id=agent_session_id
             ),  # Add tool to list uploaded files
+            get_mcp_test_hpc_connection_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC connection test tool
+            get_mcp_submit_slurm_job_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC job submission tool
+            get_mcp_check_slurm_job_status_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC job status tool
             # Add more wrapped MCP tools here
         ]
 

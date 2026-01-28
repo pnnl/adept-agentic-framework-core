@@ -13,6 +13,7 @@ services:
     volumes:
       - ./data:/app/data # Persist SQLite DB and other data for MCP server
       - shared_uploads:/app/data/uploaded_files # Shared volume for CSVs
+      - ${HPC_SSH_KEY_PATH_HOST}:/home/appuser/.ssh/hpc_key:ro # Mount only the specific SSH key for HPC
     environment:
       # Define any necessary environment variables for the MCP server
       # e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
@@ -36,6 +37,13 @@ services:
       - AWS_REGION_NAME=${AWS_REGION_NAME}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - OLLAMA_API_BASE=${OLLAMA_API_BASE} # e.g., http://host.docker.internal:11434 if Ollama runs on host
+      # HPC SSH Configuration
+      - HPC_HOST=${HPC_HOST}
+      - HPC_USER=${HPC_USER}
+      - HPC_SSH_KEY_PATH=/home/appuser/.ssh/hpc_key  # Fixed path inside container
+      - HPC_SSH_KEY_PASSPHRASE=${HPC_SSH_KEY_PASSPHRASE}
+      - HPC_SSH_PASSWORD=${HPC_SSH_PASSWORD}
+      - HPC_SSH_PORT=${HPC_SSH_PORT:-22}
     restart: unless-stopped
     networks:
       - agentic_network

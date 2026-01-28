@@ -42,6 +42,7 @@ dependencies = [
     "python-docx",
     "pubchempy",
     "gemmi",
+    "fabric>=3.0.0",  # SSH remote execution for HPC cluster integration
 ]
 
 [project.optional-dependencies]
