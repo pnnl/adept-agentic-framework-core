@@ -17,6 +17,13 @@ services:
       # Define any necessary environment variables for the MCP server
       # e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
       # These can be sourced from a.env file at the root of the project
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
+      # Default models for different purposes (required by llm_agnostic_layer)
+      - EMBEDDING_DEFAULT_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL:-text-embedding-3-small}
+      - DEFAULT_LLM_MODEL=${INTERNAL_LLM_MODEL:-gpt-3.5-turbo}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - AZURE_API_KEY=${AZURE_API_KEY}
@@ -39,6 +46,7 @@ services:
       context: .
       dockerfile: Dockerfile.streamlit_app # Use the Dockerfile for Streamlit app
     container_name: agentic_streamlit_app
+    user: "0:0" # Run as root to ensure file upload permissions
     ports:
       - "8501:8501" # Map host port 8501 to container port 8501
     volumes:
@@ -48,10 +56,19 @@ services:
       # -./src/agentic_framework_pkg/streamlit_app:/app/src/agentic_framework_pkg/streamlit_app
     environment:
       # Critical: Tell Streamlit app how to reach the MCP server
-      - USE_LOCAL_MCP=False
       - MCP_SERVER_URL=http://mcp_server:8080/mcp # Uses service name 'mcp_server'
       # Explicitly set the URL for Langchain tools running within Streamlit app
       - MCP_SERVER_URL_FOR_LANGCHAIN=http://mcp_server:8080/mcp
+      # LLM Configuration
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
+      - LANGCHAIN_LLM_MODEL=${LANGCHAIN_LLM_MODEL}
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_API_BASE=${AZURE_API_BASE}
+      - AZURE_API_VERSION=${AZURE_API_VERSION}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
             # Other env vars for Streamlit if needed
     depends_on:
       - mcp_server # Optional: ensures mcp_server starts before streamlit_app

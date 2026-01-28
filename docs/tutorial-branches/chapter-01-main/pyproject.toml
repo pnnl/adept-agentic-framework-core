@@ -17,6 +17,7 @@ dependencies = [
     #"langchain>=0.1.0",
     "langchain>=0.2.43",
     "langchain-openai", # Or other langchain provider packages
+    "langchain-community", # Required for AgentExecutor and create_openai_tools_agent
     "streamlit>=1.20.0",
     "aiosqlite>=0.17.0",
     "chromadb>=1.0.12",
@@ -73,3 +74,9 @@ target-version = "py311" # Align with project's requires-python
 [tool.ruff.lint]
 select = ["E"] #, "F", "I", "W", "C", "N", "D", "B", "T", "S", "A", "G"] # A common set of rules
 ignore = ["E501"] # Ignore line too long
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+asyncio_mode = "auto"

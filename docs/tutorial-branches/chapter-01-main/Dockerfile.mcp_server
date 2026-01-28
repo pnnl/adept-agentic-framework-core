@@ -16,25 +16,32 @@ RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     # Step 1: Initial update to populate package lists, tolerating GPG issues and old metadata
     apt-get update \
-        -o Acquire::Check-Date=false \
-        -o Acquire::Check-Valid-Until=false \
-        -o Acquire::AllowInsecureRepositories=true \
-        -o Acquire::AllowDowngradeToInsecureRepositories=true && \
+    -o Acquire::Check-Date=false \
+    -o Acquire::Check-Valid-Until=false \
+    -o Acquire::AllowInsecureRepositories=true \
+    -o Acquire::AllowDowngradeToInsecureRepositories=true && \
     # Step 2: Install/Reinstall essential packages for secure apt operation, allowing unauthenticated install
     apt-get install -y --no-install-recommends --allow-unauthenticated --reinstall \
-        ca-certificates \
-        debian-archive-keyring \
-        gnupg \
-        apt-transport-https && \
+    ca-certificates \
+    debian-archive-keyring \
+    gnupg \
+    apt-transport-https && \
     # Step 3: Clean up apt's state thoroughly before attempting a secure update
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     # Step 4: Perform a secure update. With updated keyring and CAs, this should succeed.
     apt-get update && \
-    # Step 5: Install desired packages
-    apt-get install -y --no-install-recommends build-essential && \
+    # Step 5: Install desired packages including Chrome/Chromium for Selenium
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    chromium \
+    chromium-driver && \
     # Step 6: Final cleanup of apt cache
     rm -rf /var/lib/apt/lists/*
+
+# Set Chrome environment variables for headless operation
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 
 # Copy only necessary files for dependency installation to leverage Docker cache
@@ -58,7 +65,7 @@ RUN uv venv -p 3.11 && uv pip install --no-cache-dir --editable .
 # # If you have a uv.lock and want to sync exactly:
 # RUN --mount=type=cache,target=/root/.cache/uv \
 #     uv sync --all-extras 
-    
+
 # These directories are created and owned by root initially, then ownership is changed.
 RUN mkdir -p /app/data && mkdir -p /app/shared_uploads /app/data/uploaded_files
 RUN chown -R appuser:appgroup ${HOME} 
