@@ -17,6 +17,12 @@ services:
       # Define any necessary environment variables for the MCP server
       # e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
       # These can be sourced from a.env file at the root of the project
+      # Internal LLM provider (highest priority)
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
+      # Cloud providers (fallback)
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - AZURE_API_KEY=${AZURE_API_KEY}
@@ -55,6 +61,11 @@ services:
       # Critical: Tell Streamlit app how to reach the MCP server
       - USE_LOCAL_MCP=False
       - MCP_SERVER_URL=http://mcp_server:8080/mcp # Uses service name 'mcp_server'
+      # Internal LLM provider (highest priority)
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
       # Explicitly set the URL for Langchain tools running within Streamlit app
       - MCP_SERVER_URL_FOR_LANGCHAIN=http://mcp_server:8080/mcp
             # Other env vars for Streamlit if needed
@@ -89,6 +100,11 @@ services:
       - HPC_MCP_SERVER_URL_FOR_LANGCHAIN=http://mcp_server:8080/mcp # Set the exact var name used by mcp_langchain_tools.py; but point to the othe MCP server that hosts the RAG tools
       - SANDBOX_MCP_SERVER_URL_FOR_LANGCHAIN=http://sandbox_mcp_server:8082/mcp 
       - SANDBOX_MCP_SERVER_URL=http://sandbox_mcp_server:8082/mcp # URL for Sandbox MCP server
+      # Internal LLM provider (highest priority)
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
       # LLM Credentials for summarization within HPC server's video tool
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -127,6 +143,11 @@ services:
     env_file:
       - .env
     environment:
+      # Internal LLM provider (highest priority)
+      - INTERNAL_LLM_API_KEY=${INTERNAL_LLM_API_KEY}
+      - INTERNAL_LLM_BASE_URL=${INTERNAL_LLM_BASE_URL}
+      - INTERNAL_LLM_MODEL=${INTERNAL_LLM_MODEL}
+      - INTERNAL_LLM_EMBEDDING_MODEL=${INTERNAL_LLM_EMBEDDING_MODEL}
       - SANDBOX_MCP_SERVER_HOST=0.0.0.0
       - SANDBOX_MCP_SERVER_PORT=8082
       - SANDBOX_MCP_SERVER_PUBLIC_URL=http://localhost:8082
