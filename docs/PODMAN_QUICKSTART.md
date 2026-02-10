@@ -60,13 +60,44 @@ podman --version
 # Should show: podman version 5.x.x or 4.x.x
 ```
 
+### Step 2: Configure Container Registries (CRITICAL)
+
+**This step is REQUIRED** to pull images from Docker Hub:
+
+```bash
+# From project root directory
+sudo ./configure-podman-registries.sh
+```
+
+**What this does:**
+- Configures Podman to search docker.io (Docker Hub) for images
+- Prevents "Repo not found" errors
+- Creates `/root/.config/containers/registries.conf`
+
+**Expected output:**
+```
+================================================================
+Configuring Podman Registries for Docker Hub
+================================================================
+
+Creating /root/.config/containers/registries.conf...
+✓ Configuration complete!
+
+Podman will now search docker.io (Docker Hub) for unqualified images.
+```
+
+**Why this is needed:**
+- Podman searches Red Hat registry by default
+- ADEPT uses Docker Hub images (jupyter/scipy-notebook, ollama/ollama, etc.)
+- Without this configuration, image pulls will fail
+
 ---
 
 ## Bootstrap Process
 
 The `bootstrap-podman-env.sh` script automates the complete setup process.
 
-### Step 2: Run Bootstrap Script
+### Step 3: Run Bootstrap Script
 
 From the project root directory:
 
@@ -123,9 +154,30 @@ Bootstrap Complete!
 ==========================================
 ```
 
-### Step 3: Configure Subuid/Subgid (If Needed)
+### Step 4: Check User Type (Network vs Local)
 
-If the bootstrap warned about missing subuid/subgid ranges, configure them:
+**IMPORTANT:** Check if you're a network/LDAP user:
+
+```bash
+id -u
+# If > 100000: You're a network user - MUST use rootful Podman for ALL chapters
+# If < 100000: You're a local user - CAN use rootless Podman
+```
+
+**Network/LDAP users:**
+- Cannot use rootless Podman (newuidmap limitation)
+- Must use `sudo env "PATH=$PATH"` for all chapter launches
+- This is a known unfixable issue
+
+**Local users:**
+- Can use rootless Podman (Chapters 0-2)
+- Chapter 3 requires rootful for all users (sandbox features)
+
+### Step 5: Configure Subuid/Subgid (Local Users Only)
+
+**Skip this if you're a network user** (UID >100000) - use rootful mode instead.
+
+If you're a local user and bootstrap warned about missing subuid/subgid ranges:
 
 ```bash
 # Add subuid and subgid ranges (requires sudo)

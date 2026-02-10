@@ -36,39 +36,44 @@ For a detailed walkthrough, see the [Agentic Framework Tutorial](docs/agentic-fr
 
 **Podman (Alternative Container Runtime):**
 
-Podman provides a Docker-compatible interface without requiring a daemon. Ideal for HPC environments and rootless container execution.
+Podman provides a Docker-compatible interface without requiring a daemon. Ideal for HPC environments.
+
+> **⚠️ IMPORTANT:** Network/LDAP users (UID >100000) MUST use rootful Podman for all chapters. Check your UID with `id -u`.
 
 **Supported Chapters:** 0-3 (Introduction through LLM Sandbox)
 
 **Quick Setup:**
 ```bash
-# 1. Bootstrap Podman environment (one-time setup)
-./bootstrap-podman-env.sh
+# 1. Configure registries (one-time, requires sudo)
+sudo ./configure-podman-registries.sh
 
-# 2. Configure subuid/subgid if prompted (requires sudo)
-sudo usermod --add-subuids 100000-165535 $USER
-sudo usermod --add-subgids 100000-165535 $USER
-podman system migrate
+# 2. Bootstrap Podman environment (one-time setup)
+./bootstrap-podman-env.sh
 
 # 3. Activate environment (required each session)
 source .venv-podman/bin/activate
-```
 
-**Rootless mode (Chapters 0-2):**
-```bash
+# 4. Launch chapter
 cd docs/tutorial-branches/chapter-01-main
+
+# For standard users (UID < 100000):
 ./start-chapter-resources-podman.sh
+
+# For network/LDAP users (UID > 100000) - REQUIRED:
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
-**Rootful mode (Chapter 3 - sandbox features):**
+**Chapter 3 (ALL users require sudo):**
 ```bash
 cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
-sudo -E ./start-chapter-resources-podman.sh
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
 **Documentation:**
-- [Podman Quick Start](docs/PODMAN_QUICKSTART.md) - Complete setup walkthrough
+- [Platform Engineer From-Scratch Guide](docs/PLATFORM_ENGINEER_FROM_SCRATCH.md) - Complete deployment ⭐
+- [Podman Quick Start](docs/PODMAN_QUICKSTART.md) - Quick command reference
 - [Podman Deployment Guide](docs/podman-deployment-guide.md) - Comprehensive reference
+- [Podman Documentation Index](docs/PODMAN_DOCUMENTATION_INDEX.md) - Central index
 
 **Local Development:**
 

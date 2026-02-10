@@ -238,20 +238,25 @@ STREAMLIT_SERVER_PORT=8501
 
 ### Step 3: Choose Container Runtime
 
-You have two options: **Docker** (recommended for simplicity) or **Podman** (better for HPC/rootless).
+You have two options: **Docker** (recommended for simplicity) or **Podman** (HPC standard, requires rootful mode for network users).
 
 **Decision matrix:**
 
 | Factor | Docker | Podman |
 |--------|--------|--------|
-| Ease of setup | ✅ Simple | ⚠️ Moderate |
+| Ease of setup | ✅ Simple | ⚠️ Moderate (registry config needed) |
 | Chapter support | ✅ All (0-6) | ⚠️ Only 0-3 |
-| Root required | ⚠️ Daemon runs as root | ✅ Rootless capable |
-| HPC integration | ❌ Limited | ✅ Better |
+| Root required | ⚠️ Daemon runs as root | ⚠️ Rootful required for network users |
+| Network user support | ✅ Works | ⚠️ Rootful only (UID >100000) |
+| HPC integration | ⚠️ Limited | ✅ Better |
 | Corporate adoption | ✅ High | ⚠️ Growing |
 | Learning curve | ✅ Low | ⚠️ Medium |
 
-**Recommendation:** Start with Docker, migrate to Podman later if needed.
+**Recommendation:**
+- **Docker:** Best for quick setup and full feature support (Chapters 0-6)
+- **Podman:** Required in environments where Docker unavailable; network/LDAP users must use rootful mode
+
+**Important:** If you're a network/LDAP user (UID >100000), both Docker and Podman require elevated privileges. Docker is simpler to configure.
 
 ---
 
@@ -317,7 +322,7 @@ docker compose up --build --remove-orphans > ../../../logs/chapter-01-docker-$(d
 > **📘 Complete From-Scratch Guide Available**
 >
 > For a comprehensive step-by-step Podman deployment on a fresh system, see:
-> **[PLATFORM_ENGINEER_FROM_SCRATCH.md](PLATFORM_ENGINEER_FROM_SCRATCH.md)**
+> **[PLATFORM_ENGINEER_FROM_SCRATCH.md](PLATFORM_ENGINEER_FROM_SCRATCH.md)** ⭐
 >
 > This guide includes:
 > - Network/LDAP user detection and configuration
@@ -327,6 +332,29 @@ docker compose up --build --remove-orphans > ../../../logs/chapter-01-docker-$(d
 > - Maintenance and operational guidance
 >
 > The instructions below provide a quick overview. Use the from-scratch guide for detailed deployment.
+
+> **⚠️ Key Workarounds Required for Podman:**
+>
+> 1. **Registry Configuration:** Run `sudo ./configure-podman-registries.sh` BEFORE deploying
+> 2. **Network/LDAP Users:** Check `id -u` - if >100000, MUST use rootful mode (sudo)
+> 3. **PATH Preservation:** Use `sudo env "PATH=$PATH"` to find podman-compose
+> 4. **Tested Configuration:** Chapter 0 verified working with rootful Podman
+>
+> **Testing Status:** ✅ Chapter 0 functional | ⏳ Chapters 1-3 pending verification
+
+#### Check User Type (Critical)
+
+Determine if you need rootless or rootful Podman:
+
+```bash
+# Check your UID
+id -u
+
+# If UID > 100000: Network/LDAP user - MUST use rootful Podman
+# If UID < 100000: Local user - CAN use rootless Podman
+```
+
+**Network/LDAP users:** Cannot use rootless Podman due to newuidmap limitation (known unfixable issue). See PLATFORM_ENGINEER_FROM_SCRATCH.md for details.
 
 #### Install Podman
 
@@ -341,6 +369,17 @@ sudo apt-get update
 sudo apt-get install -y podman
 ```
 
+#### Configure Registries (REQUIRED)
+
+Configure Podman to search Docker Hub for images:
+
+```bash
+# From project root
+sudo ./configure-podman-registries.sh
+```
+
+This prevents "Repo not found" errors when pulling Docker Hub images.
+
 #### Run Bootstrap Script
 
 ```bash
@@ -353,25 +392,8 @@ sudo apt-get install -y podman
 ✓ Found Python 3.9.x
 ✓ Found Podman 5.6.0
 ✓ Podman storage configured at /tmp/podman-storage-$USER
-⚠️  Warning: No subuid ranges found for user $USER
-   (Fix instructions provided)
 ✓ Virtual environment created
 ✓ Created activation helper
-```
-
-#### Configure Subuid/Subgid (Critical)
-
-```bash
-# Add UID/GID ranges (requires sudo - one-time)
-sudo usermod --add-subuids 100000-165535 $USER
-sudo usermod --add-subgids 100000-165535 $USER
-
-# Verify configuration
-grep $USER /etc/subuid /etc/subgid
-# Expected: rigo160:100000:65536 (for both files)
-
-# Migrate Podman to use new ranges
-podman system migrate
 ```
 
 #### Test Podman
@@ -380,27 +402,35 @@ podman system migrate
 # Activate environment
 source .venv-podman/bin/activate
 
-# Test basic functionality
+# For standard users - test rootless
 podman run --rm hello-world
-# Should show "Hello Podman World" ASCII art
+
+# For network users - test rootful
+sudo podman run --rm hello-world
 ```
+
+**If you get newuidmap errors:** You're a network user and must use rootful Podman (sudo) for all operations.
 
 #### Launch Chapter 1 with Podman
 
 ```bash
+# Activate environment
+source .venv-podman/bin/activate
+
 cd docs/tutorial-branches/chapter-01-main
 
-# Interactive mode
+# For standard users (UID < 100000):
 ./start-chapter-resources-podman.sh
 
-# OR Background mode with logging
-mkdir -p ../../../logs
-nohup bash -c 'source ../../../.venv-podman/bin/activate && ./start-chapter-resources-podman.sh' \
-  > ../../../logs/chapter-01-podman-$(date +%Y%m%d_%H%M%S).log 2>&1 &
+# For network/LDAP users (UID > 100000):
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
-# Save PID for management
-echo $! > ../../../logs/chapter-01-podman.pid
+# Background mode (network users):
+nohup sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh \
+  > ../../../logs/chapter-01-podman-$(date +%Y%m%d_%H%M%S).log 2>&1 &
 ```
+
+**Note:** PATH preservation (`env "PATH=$PATH"`) is required so sudo can find podman-compose.
 
 ---
 
@@ -522,10 +552,15 @@ cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
 ./start-chapter-resources.sh
 ```
 
-**Deployment with Podman (rootful):**
+**Deployment with Podman (rootful - required for ALL users):**
 ```bash
 cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
-sudo -E ./start-chapter-resources-podman.sh
+
+# Activate environment first
+source ../../../.venv-podman/bin/activate
+
+# Launch with PATH preserved
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
 **Security implications:**
@@ -954,24 +989,33 @@ podman logs agentic_mcp_server | grep -i error
 - ✅ Acceptable for single-user dev machines
 - ✅ Use Docker Desktop on macOS/Windows for better isolation
 
-**Podman Rootless (Ch0-2):**
+**Podman Rootless (Local Users Only):**
 - ✅ Containers run as non-root user
 - ✅ No daemon running as root
 - ✅ Better isolation from host system
 - ✅ Recommended for shared dev servers
-- ⚠️ Some images may not work without subuid/subgid
+- ⚠️ **Does NOT work with network/LDAP users** (newuidmap limitation)
+- ⚠️ Requires subuid/subgid configuration
 
-**Podman Rootful (Ch3):**
+**Podman Rootful (Network Users and Ch3):**
 - ⚠️ Similar security profile to Docker
 - ⚠️ Requires sudo to run scripts
-- ⚠️ Privileged container for sandbox
+- ⚠️ Required for network/LDAP users (high UIDs)
+- ⚠️ Required for Chapter 3 sandbox (all users)
 - ⚠️ Only use in trusted environments
 
 ### For Shared/HPC Environments
 
-**Recommended setup:**
-1. Use Podman rootless mode (Chapters 0-2)
-2. Disable Chapter 3 (sandbox) or run under strict supervision
+**Network/LDAP users (typical in HPC):**
+1. Must use Podman rootful mode (similar security to Docker)
+2. Configure registries before first use: `sudo ./configure-podman-registries.sh`
+3. Limit API key access (use dedicated service accounts)
+4. Monitor resource usage (CPU/memory limits)
+5. Consider Docker if Podman rootful is not acceptable
+
+**Local users:**
+1. Can use Podman rootless mode (Chapters 0-2) for better security
+2. Disable Chapter 3 (sandbox) or run rootful under strict supervision
 3. Limit API key access (use dedicated service accounts)
 4. Monitor resource usage (CPU/memory limits)
 5. Implement network policies (if using Kubernetes)
@@ -1223,15 +1267,25 @@ podman-compose down --remove-orphans
 
 **Common characteristics:**
 - NFS home directories
+- Network/LDAP authentication (high UIDs >100000)
 - No subuid/subgid by default
 - Firewall restrictions
-- No root access for users
+- Limited root access for users
 - Slurm or other schedulers
 
-**Recommended approach:**
-1. Use Podman rootless (Chapters 0-2)
-2. Request admin to configure subuid/subgid
-3. Use local scratch space for storage (`/tmp` or `/scratch`)
+**Podman deployment considerations:**
+1. **User type detection:** Run `id -u` to check if network user (UID >100000)
+2. **Network users:** MUST use rootful Podman (rootless incompatible)
+3. **Registry configuration:** Run `sudo ./configure-podman-registries.sh` (required once)
+4. **Storage location:** Use local scratch space (`/tmp` or `/scratch`) via VFS driver
+5. **Security model:** Rootful Podman similar to Docker daemon (both require elevated privileges)
+
+**Recommended approach for HPC:**
+1. Coordinate with HPC admins for sudo access (required for network users)
+2. Configure registries before deployment
+3. Use local scratch space for storage (not NFS)
+4. Consider Docker if rootful Podman not acceptable
+5. Document security model for compliance team
 4. Coordinate port allocations
 5. Consider using compute nodes instead of login nodes
 
