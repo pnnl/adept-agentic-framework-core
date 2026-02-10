@@ -40,19 +40,18 @@ Podman provides a Docker-compatible interface without requiring a daemon. Ideal 
 
 **Supported Chapters:** 0-3 (Introduction through LLM Sandbox)
 
-**Prerequisites:**
-- Podman 4.0+
-- Python 3.9+
-
 **Quick Setup:**
 ```bash
-# Bootstrap Podman Python environment (one-time setup)
+# 1. Bootstrap Podman environment (one-time setup)
 ./bootstrap-podman-env.sh
 
-# Activate the environment
+# 2. Configure subuid/subgid if prompted (requires sudo)
+sudo usermod --add-subuids 100000-165535 $USER
+sudo usermod --add-subgids 100000-165535 $USER
+podman system migrate
+
+# 3. Activate environment (required each session)
 source .venv-podman/bin/activate
-# OR use the helper:
-source ./activate-podman-env.sh
 ```
 
 **Rootless mode (Chapters 0-2):**
@@ -67,7 +66,9 @@ cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
 sudo -E ./start-chapter-resources-podman.sh
 ```
 
-For detailed instructions, see the [Podman Deployment Guide](docs/podman-deployment-guide.md).
+**Documentation:**
+- [Podman Quick Start](docs/PODMAN_QUICKSTART.md) - Complete setup walkthrough
+- [Podman Deployment Guide](docs/podman-deployment-guide.md) - Comprehensive reference
 
 **Local Development:**
 

@@ -2,16 +2,14 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Removes platform specifications (Podman handles multiarch differently)
 # - Adds SELinux labels for volume mounts (:Z suffix)
 # - Disables SELinux isolation for compatibility
 # - Fully rootless compatible
+# - Platform specifications removed from base compose file
 version: '3.8'
 
 services:
   ollama:
-    # Remove platform specification - Podman auto-detects architecture
-    platform: null
     # Podman-specific: disable SELinux labels if causing issues
     security_opt:
       - label=disable
@@ -20,8 +18,6 @@ services:
       - ollama_data:/root/.ollama:Z
 
   mcp_server:
-    # Remove platform specification
-    platform: null
     security_opt:
       - label=disable
     volumes:
@@ -31,14 +27,12 @@ services:
     # Podman networking note: Service names work the same as Docker
 
   streamlit_app:
-    platform: null
     security_opt:
       - label=disable
     volumes:
       - shared_uploads:/app/data/uploaded_files:z
 
   jupyterlab:
-    platform: null
     security_opt:
       - label=disable
     volumes:

@@ -71,14 +71,20 @@ driver = "vfs"
 
 However, this failed because Podman already had existing storage with overlay driver.
 
-**Resolution Required:**
-To fix this issue, need to either:
-1. Reset Podman storage:
-   ```bash
-   podman system reset  # WARNING: Deletes all images and containers
-   ```
-2. Use a local (non-NFS) directory for storage by setting `graphroot` in storage.conf
-3. Continue with overlay driver but expect compatibility issues
+**Resolution Applied:**
+✅ Fixed by using local temporary storage with VFS driver:
+```bash
+# Storage directory cleared
+rm -rf ~/.local/share/containers/storage
+
+# Configured in ~/.config/containers/storage.conf:
+[storage]
+driver = "vfs"
+graphroot = "/tmp/podman-storage-rigo160"
+runroot = "/tmp/podman-run-rigo160"
+```
+
+✅ Test passed: `podman run --rm hello-world` succeeded
 
 ## Python Virtual Environment Solution
 
@@ -143,19 +149,16 @@ Network file system detected as backing store. Enforcing overlay option force_ma
 
 **Impact:** Storage driver may have compatibility issues
 
-**Solutions:**
-1. Use VFS driver (slower but compatible):
-   ```bash
-   podman system reset
-   # Then ensure storage.conf has: driver = "vfs"
-   ```
+**Solution Applied:**
+✅ Configured VFS driver with local storage:
+```bash
+[storage]
+driver = "vfs"
+graphroot = "/tmp/podman-storage-rigo160"
+runroot = "/tmp/podman-run-rigo160"
+```
 
-2. Use local storage location:
-   ```toml
-   [storage]
-   driver = "overlay"
-   graphroot = "/tmp/podman-storage-$USER"
-   ```
+This configuration is now automatically applied by `bootstrap-podman-env.sh`.
 
 ### Issue 3: Extended Attributes Not Supported
 **Error:**
@@ -165,8 +168,68 @@ lsetxattr: operation not supported
 
 **Impact:** Cannot use overlay storage driver on NFS
 
-**Best Solution:**
-Use VFS driver or local filesystem for storage.
+**Solution Applied:**
+✅ Using VFS driver with local filesystem storage (see Issue 2).
+
+---
+
+### Issue 4: Insufficient UIDs/GIDs for Container Images
+**Error encountered during image build:**
+```
+potentially insufficient UIDs or GIDs available in user namespace (requested 0:42 for /etc/gshadow)
+Check /etc/subuid and /etc/subgid
+```
+
+**Root Cause:**
+- No subuid/subgid ranges configured for user `rigo160`
+- Rootless Podman uses single user mapping (current UID only)
+- Many container images expect multiple UID/GID mappings (e.g., Python image has group ID 42)
+
+**Impact:**
+- Cannot build or run most container images in rootless mode
+- Build process fails when trying to extract layers with different UIDs/GIDs
+
+**Solution:**
+Configure subuid/subgid ranges (requires admin/sudo):
+
+```bash
+# Add UID and GID ranges for the user
+sudo usermod --add-subuids 100000-165535 $USER
+sudo usermod --add-subgids 100000-165535 $USER
+
+# Verify configuration
+grep $USER /etc/subuid /etc/subgid
+# Expected output:
+# rigo160:100000:65536
+# rigo160:100000:65536
+
+# Migrate Podman to use new configuration
+podman system migrate
+```
+
+**Alternative (if sudo not available):**
+Use rootful Podman for all operations:
+```bash
+sudo -E bash -c 'source .venv-podman/bin/activate && cd docs/tutorial-branches/chapter-XX && ./start-chapter-resources-podman.sh'
+```
+
+**Status:**
+⚠️ **Pending Resolution** - Requires admin to configure subuid/subgid ranges
+
+---
+
+### Issue 5: podman-compose Merge Error with platform: null
+**Error:**
+```
+ValueError: can't merge value of [platform] of type <class 'str'> and <class 'NoneType'>
+```
+
+**Root Cause:**
+- Original overlay files set `platform: null` to remove platform specifications
+- podman-compose cannot merge string values from base file with null values from overlay
+
+**Solution Applied:**
+✅ Fixed - Removed `platform:` keys entirely from overlay files instead of setting to null. The overlay files now only override volumes and security options.
 
 ## Environment-Specific Notes
 

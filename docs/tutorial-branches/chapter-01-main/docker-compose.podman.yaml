@@ -2,7 +2,6 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Removes platform specifications (Podman handles multiarch differently)
 # - Adds SELinux labels for volume mounts (:Z suffix)
 # - Disables SELinux isolation for compatibility
 # - Fully rootless compatible
@@ -10,8 +9,6 @@ version: '3.8'
 
 services:
   mcp_server:
-    # Remove platform specification - Podman auto-detects architecture
-    platform: null
     # Podman-specific: disable SELinux labels if causing issues
     security_opt:
       - label=disable
@@ -23,8 +20,6 @@ services:
       - shared_uploads:/app/data/uploaded_files:z
 
   streamlit_app:
-    # Remove platform specification
-    platform: null
     security_opt:
       - label=disable
     volumes:

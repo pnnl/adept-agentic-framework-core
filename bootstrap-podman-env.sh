@@ -30,6 +30,49 @@ fi
 PODMAN_VERSION=$(podman --version | awk '{print $3}')
 echo "✓ Found Podman $PODMAN_VERSION"
 
+# Configure Podman storage for NFS compatibility
+echo ""
+echo "Configuring Podman storage..."
+mkdir -p ~/.config/containers
+mkdir -p /tmp/podman-storage-$USER
+mkdir -p /tmp/podman-run-$USER
+
+cat > ~/.config/containers/storage.conf << 'STORAGE_EOF'
+[storage]
+driver = "vfs"
+graphroot = "/tmp/podman-storage-$USER"
+runroot = "/tmp/podman-run-$USER"
+
+[storage.options]
+# VFS driver with local temporary storage
+# Avoids NFS permission and xattr issues
+# Works on network filesystems
+STORAGE_EOF
+
+# Expand USER variable
+sed -i "s/\$USER/$USER/g" ~/.config/containers/storage.conf 2>/dev/null || true
+
+echo "✓ Podman storage configured at /tmp/podman-storage-$USER"
+echo "  Driver: vfs (NFS-compatible)"
+
+# Check for subuid/subgid configuration
+echo ""
+echo "Checking rootless configuration..."
+if ! grep -q "^$USER:" /etc/subuid 2>/dev/null; then
+    echo "⚠️  Warning: No subuid ranges found for user $USER"
+    echo "   This may cause issues with some container images"
+    echo ""
+    echo "   To fix (requires sudo/admin):"
+    echo "   sudo usermod --add-subuids 100000-165535 $USER"
+    echo "   sudo usermod --add-subgids 100000-165535 $USER"
+    echo "   podman system migrate"
+    echo ""
+    echo "   Alternative: Use rootful Podman (run scripts with sudo -E)"
+    echo ""
+else
+    echo "✓ Subuid/subgid ranges configured"
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
     echo ""

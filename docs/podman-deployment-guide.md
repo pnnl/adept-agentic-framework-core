@@ -24,6 +24,8 @@ This guide provides comprehensive instructions for deploying the ADEPT (Agentic 
 
 **Not Yet Supported:** Chapters 4-6 (Kubernetes, OpenWebUI, Agent Gateway)
 
+**Quick Start:** For a streamlined setup process, see [PODMAN_QUICKSTART.md](PODMAN_QUICKSTART.md) which provides step-by-step instructions with solutions for common HPC environment issues.
+
 ---
 
 ## Why Podman for ADEPT?
@@ -151,12 +153,29 @@ wsl --set-version Ubuntu 2
 podman --version
 # Expected: podman version 4.0.0 or higher
 
-# Check podman-compose
-podman-compose --version
-
-# Test Podman
+# Test basic Podman (may fail without further configuration)
 podman run --rm hello-world
 ```
+
+**Note:** If the test fails with permission or storage errors, proceed to the Bootstrap Process section below which handles these issues automatically.
+
+### Automated Setup (Recommended)
+
+Instead of manual installation of podman-compose and configuration, use our bootstrap script:
+
+```bash
+# From project root
+./bootstrap-podman-env.sh
+```
+
+This script automatically:
+- Configures Podman storage for NFS environments
+- Creates a Python virtual environment
+- Installs podman-compose and dependencies
+- Checks for subuid/subgid configuration
+- Provides fix instructions if needed
+
+See [PODMAN_QUICKSTART.md](PODMAN_QUICKSTART.md) for detailed bootstrap usage.
 
 ---
 
