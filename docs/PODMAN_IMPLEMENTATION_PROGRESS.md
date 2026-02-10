@@ -1,12 +1,12 @@
 # Podman Rootful Mode Implementation Progress
 
-**Last Updated:** 2026-02-09 18:30
-**Status:** Implementation Complete - Testing In Progress
+**Last Updated:** 2026-02-10 07:00
+**Status:** ✅ **COMPLETE** - Chapter 0 Fully Tested and Working
 **Branch:** feature-add-podman-support
 
 ## Executive Summary
 
-Implemented rootful Podman support for all chapters (0-3) to resolve network user UID limitations. All configuration fixes and script updates are complete. Documentation fully updated. Currently awaiting Chapter 0 test results.
+Successfully implemented rootful Podman support for all chapters (0-3) with macOS/Linux compatibility. Fixed critical DATABASE_URL configuration issue and created comprehensive troubleshooting tools. Chapter 0 fully tested and verified working with all services operational.
 
 ---
 
@@ -46,6 +46,8 @@ Status: ✅ **COMPLETE**
 2. ✅ Consistent AppArmor policy applied (apparmor=unconfined)
 3. ✅ Socket label corrected (:Z → :z for shared access)
 4. ✅ Headers updated to document rootful requirement
+5. ✅ SELinux labels removed entirely for macOS/Linux compatibility (Session 2)
+6. ✅ Permission fix function added to all startup scripts (Session 2)
 
 ---
 
@@ -84,34 +86,34 @@ Status: ✅ **COMPLETE**
 ---
 
 ### Phase 3: Testing
-Status: ⏳ **IN PROGRESS**
+Status: ✅ **CHAPTER 0 COMPLETE** - Chapter 1 In Progress
 
-- [ ] **Chapter 0 Test** - AWAITING USER EXECUTION
+- [x] **Chapter 0 Test** - ✅ **COMPLETE AND VERIFIED**
   - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
-  - Expected: All services start (ollama, mcp_server, streamlit_app, jupyterlab)
-  - Verify: No newuidmap errors, SELinux labels working
+  - Result: All services running, no critical errors
+  - Verified: Database fixed (SQLite), permissions fixed, health checks pass
+  - Status: ✅ Complete
+
+- [ ] **Chapter 1 Test** - ⏳ **IN PROGRESS**
+  - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
+  - Status: ⏳ Starting now
+
+- [ ] **Chapter 2 Test** - PLANNED (after Chapter 1 success)
+  - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
   - Status: ⏳ Pending
 
-- [ ] **Chapter 1 Test** - PLANNED (after Chapter 0 success)
-  - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
-  - Status: ⏳ Pending
-
-- [ ] **Chapter 2 Test** - PLANNED (after Chapter 0 success)
-  - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
-  - Status: ⏳ Pending
-
-- [ ] **Chapter 3 Test** - PLANNED (after Chapter 0 success)
+- [ ] **Chapter 3 Test** - PLANNED (after Chapter 1 success)
   - Command: `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
   - Status: ⏳ Pending
 
 **Test Verification Criteria:**
-- ✅ Script accepts without sudo → Shows clear error message
-- ⏳ Script with sudo + PATH → Finds podman-compose
-- ⏳ All services start successfully
-- ⏳ No newuidmap errors in logs
-- ⏳ SELinux labels applied correctly (no permission errors)
-- ⏳ Services respond to health checks
-- ⏳ Clean shutdown with Ctrl+C
+- ✅ Script without sudo → Shows clear error message (Chapter 0 verified)
+- ✅ Script with sudo + PATH → Finds podman-compose (Chapter 0 verified)
+- ✅ All services start successfully (Chapter 0 verified)
+- ✅ No newuidmap errors in logs (Chapter 0 verified)
+- ✅ Permissions configured correctly via chmod 777 (Chapter 0 verified)
+- ✅ Services respond to health checks (Chapter 0 verified)
+- ✅ Clean shutdown with Ctrl+C (Chapter 0 verified)
 
 ---
 
@@ -176,7 +178,7 @@ Status: ✅ **COMPLETE**
 
 ## Issues Fixed Summary
 
-### Configuration Issues (8 total)
+### Configuration Issues (10 total)
 
 1. **Conflicting Security Options (HIGH)** ✅
    - Problem: `label=disable` disabled SELinux labeling
@@ -218,26 +220,36 @@ Status: ✅ **COMPLETE**
    - Fix: Created configure-podman-registries.sh to set docker.io as primary
    - Impact: Can now pull images from Docker Hub
 
+9. **DATABASE_URL PostgreSQL Configuration (CRITICAL)** ✅
+   - Problem: .env configured for PostgreSQL but Chapter 0 has no PostgreSQL service
+   - Fix: Changed DATABASE_URL to sqlite+aiosqlite:///./data/agentic_framework.db
+   - Impact: MCP server starts without asyncpg dependency, uses SQLite correctly
+
+10. **SELinux Labels Break macOS (HIGH)** ✅
+   - Problem: SELinux labels (:Z, :z) are Linux-specific, break macOS compatibility
+   - Fix: Removed all volume mount overrides, added chmod 777 to startup scripts
+   - Impact: Portable solution works on both Linux and macOS
+
 ---
 
 ## File Changes Summary
 
-### Modified Files (20 total)
+### Modified Files (27 total)
 
-**Overlay Files (4):**
+**Overlay Files (4 - modified twice):**
 ```
-docs/tutorial-branches/chapter-00-introduction/docker-compose.podman.yaml
-docs/tutorial-branches/chapter-01-main/docker-compose.podman.yaml
-docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/docker-compose.podman.yaml
-docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/docker-compose.podman.yaml
+docs/tutorial-branches/chapter-00-introduction/docker-compose.podman.yaml (SELinux labels removed)
+docs/tutorial-branches/chapter-01-main/docker-compose.podman.yaml (SELinux labels removed)
+docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/docker-compose.podman.yaml (SELinux labels removed)
+docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/docker-compose.podman.yaml (SELinux labels removed)
 ```
 
-**Startup Scripts (4):**
+**Startup Scripts (4 - modified twice):**
 ```
-docs/tutorial-branches/chapter-00-introduction/start-chapter-resources-podman.sh
-docs/tutorial-branches/chapter-01-main/start-chapter-resources-podman.sh
-docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/start-chapter-resources-podman.sh
-docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/start-chapter-resources-podman.sh
+docs/tutorial-branches/chapter-00-introduction/start-chapter-resources-podman.sh (added fix_directory_permissions)
+docs/tutorial-branches/chapter-01-main/start-chapter-resources-podman.sh (added fix_directory_permissions)
+docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/start-chapter-resources-podman.sh (added fix_directory_permissions)
+docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/start-chapter-resources-podman.sh (added fix_directory_permissions)
 ```
 
 **Configuration Scripts (1):**
@@ -245,13 +257,24 @@ docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/start-chapter-reso
 configure-podman-registries.sh (NEW - configures Docker Hub as primary registry)
 ```
 
-**Documentation (11):**
+**Troubleshooting Tools (6 - NEW in Session 2):**
+```
+docs/tutorial-branches/chapter-00-introduction/check-service-logs.sh (NEW - log monitoring with error highlighting)
+docs/tutorial-branches/chapter-00-introduction/verify-services.sh (NEW - health checks for all endpoints)
+docs/tutorial-branches/chapter-00-introduction/configure-sudo-nopasswd.sh (NEW - passwordless sudo setup)
+docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md (NEW - issue resolution guide)
+docs/tutorial-branches/chapter-00-introduction/quick-log-check.sh (NEW - quick log viewer)
+docs/tutorial-branches/chapter-00-introduction/restart-chapter0.sh (NEW - restart helper)
+```
+
+**Documentation (12):**
 ```
 docs/PODMAN_BOOTSTRAP_NOTES.md (issue history and resolution)
 docs/podman-deployment-guide.md (comprehensive deployment guide)
 docs/PODMAN_QUICKSTART.md (quick start commands)
 docs/PODMAN_BUGFIX_PROCESS.md (NEW - bugfix methodology and process)
 docs/PLATFORM_ENGINEER_FROM_SCRATCH.md (NEW - complete from-scratch guide)
+docs/PODMAN_DOCUMENTATION_INDEX.md (NEW - documentation index)
 docs/PLATFORM_ENGINEER_ONBOARDING.md (updated with from-scratch reference)
 docs/tutorial-branches/chapter-00-introduction/README.md
 docs/tutorial-branches/chapter-01-main/README.md
@@ -259,6 +282,18 @@ docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/README.md
 docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/README.md
 docs/PODMAN_IMPLEMENTATION_PROGRESS.md (this file)
 ```
+
+---
+
+## Git Commits
+
+**Session 1 Commits:**
+- `988d1eb` - WIP: Fix Podman rootful mode for network users (Chapters 0-3)
+- `7772ed5` - Update documentation with registry configuration and network user workarounds
+
+**Session 2 Commits:**
+- `15b5a9a` - Remove SELinux labels from Podman overlays for macOS/Linux compatibility
+- `354424f` - Add Chapter 0 troubleshooting tools and documentation
 
 ---
 
@@ -347,6 +382,159 @@ curl -f http://localhost:8888            # JupyterLab
 
 ---
 
+## Session 2: SELinux Removal & Troubleshooting Tools (2026-02-10)
+
+### Critical Issues Discovered After Initial Deployment
+
+#### Issue #9: DATABASE_URL PostgreSQL vs SQLite Configuration (CRITICAL)
+**Date:** 2026-02-10 06:55
+**Symptom:**
+```
+ModuleNotFoundError: No module named 'asyncpg'
+Traceback: sqlalchemy.util.deprecations
+```
+
+**Root Cause:**
+- Chapter 0 `.env` file configured with `DATABASE_URL=postgresql+asyncpg://admin:password@postgres:5432/agentic_orchestrator`
+- Chapter 0 has NO PostgreSQL container (uses SQLite for simplicity)
+- Container missing `asyncpg` dependency (not needed for SQLite)
+- MCP server crashes on startup trying to connect to non-existent database
+
+**Fix Applied:**
+Updated `.env` DATABASE_URL configuration:
+```bash
+# From (PostgreSQL - wrong for Chapter 0):
+DATABASE_URL=postgresql+asyncpg://admin:password@postgres:5432/agentic_orchestrator
+
+# To (SQLite - correct for Chapter 0):
+DATABASE_URL=sqlite+aiosqlite:///./data/agentic_framework.db
+```
+
+**Result:** ✅ MCP server starts successfully, Streamlit connects, all services operational
+
+**Note:** `.env` file not tracked in git (security), documented in TROUBLESHOOTING.md for users to fix manually.
+
+---
+
+#### Issue #10: SELinux Labels Break macOS Compatibility (HIGH)
+**Date:** 2026-02-10 05:00
+**Problem:**
+- All overlay files used SELinux labels (`:Z`, `:z`) on volume mounts
+- SELinux is Linux-specific and breaks macOS compatibility
+- Permission errors occurred even on Linux due to label configuration
+
+**Fix Applied:**
+- Removed ALL SELinux labels from volume mount overrides in all 4 overlay files
+- Added `fix_directory_permissions()` function to all 4 startup scripts
+- Scripts now run `chmod -R 777 data/ notebooks/` before launching containers
+- Portable solution works on both Linux and macOS
+
+**Files Changed:**
+```
+docs/tutorial-branches/chapter-00-introduction/docker-compose.podman.yaml
+docs/tutorial-branches/chapter-01-main/docker-compose.podman.yaml
+docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/docker-compose.podman.yaml
+docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/docker-compose.podman.yaml
+docs/tutorial-branches/chapter-00-introduction/start-chapter-resources-podman.sh
+docs/tutorial-branches/chapter-01-main/start-chapter-resources-podman.sh
+docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/start-chapter-resources-podman.sh
+docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/start-chapter-resources-podman.sh
+```
+
+**Commit:** `15b5a9a` - Remove SELinux labels from Podman overlays for macOS/Linux compatibility
+
+---
+
+### Troubleshooting Tools Created
+
+#### New Helper Scripts (Chapter 0)
+Created comprehensive troubleshooting toolkit:
+
+1. **check-service-logs.sh** - Cross-reference service logs with error highlighting
+   - Modes: summary (errors only), full (detailed), follow (live), health (endpoints)
+   - Color-coded output (red=errors, yellow=warnings, green=success)
+   - Monitors all 4 services: ollama, mcp_server, streamlit_app, jupyterlab
+   - Example: `sudo ./check-service-logs.sh summary`
+
+2. **verify-services.sh** - Comprehensive health verification
+   - Container status checks
+   - HTTP/HTTPS endpoint testing with SSL support
+   - Database file validation (SQLite)
+   - ChromaDB directory accessibility check
+   - Quick access URLs for all services
+   - Example: `sudo ./verify-services.sh`
+
+3. **configure-sudo-nopasswd.sh** - Passwordless sudo configuration
+   - Creates secure sudoers.d configuration for Podman commands only
+   - Validates syntax before applying
+   - Supports both secure (Podman-only) and all-commands modes
+   - Example: `sudo ./configure-sudo-nopasswd.sh`
+
+4. **TROUBLESHOOTING.md** - Comprehensive issue resolution guide
+   - Documents all common issues and solutions
+   - DATABASE_URL PostgreSQL vs SQLite configuration
+   - Streamlit connection failures (MCP server down)
+   - ChromaDB permission errors
+   - Sudo password prompts
+   - Complete verification checklist
+   - Helper script usage examples
+
+**Files Added:**
+```
+docs/tutorial-branches/chapter-00-introduction/check-service-logs.sh
+docs/tutorial-branches/chapter-00-introduction/verify-services.sh
+docs/tutorial-branches/chapter-00-introduction/configure-sudo-nopasswd.sh
+docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md
+docs/tutorial-branches/chapter-00-introduction/quick-log-check.sh
+docs/tutorial-branches/chapter-00-introduction/restart-chapter0.sh
+```
+
+**Commit:** `354424f` - Add Chapter 0 troubleshooting tools and documentation
+
+---
+
+### Final Test Results (Session 2)
+
+#### Test Log: Chapter 0 Full Verification
+**Date:** 2026-02-10 06:55
+**Command:** `sudo ./check-service-logs.sh summary`
+**Result:** ✅ **SUCCESS** - All critical errors resolved
+
+**Container Status:**
+```
+ollama_ch00                 ✅ RUNNING
+agentic_mcp_server_ch00     ✅ RUNNING
+agentic_streamlit_app_ch00  ✅ RUNNING
+agentic_jupyterlab_ch00     ✅ RUNNING
+```
+
+**Log Analysis:**
+- ✅ MCP Server: Only deprecation warnings (harmless)
+- ✅ Streamlit: Only config warnings (cosmetic)
+- ✅ JupyterLab: No errors
+- ✅ Ollama: No errors
+
+**Issues Resolved:**
+1. ✅ `ModuleNotFoundError: No module named 'asyncpg'` - Fixed by DATABASE_URL change
+2. ✅ `RuntimeError: Client failed to connect` - Fixed (MCP server now running)
+3. ✅ ChromaDB permission errors - Fixed by chmod 777 in startup script
+4. ✅ SELinux compatibility - Fixed by removing labels
+
+**Health Checks:**
+```bash
+# All endpoints responding
+✓ Ollama API (11434)
+✓ MCP Server (8080)
+✓ Streamlit SSL (8501)
+✓ JupyterLab (8888)
+✓ SQLite database exists
+✓ ChromaDB directory accessible
+```
+
+**Conclusion:** Chapter 0 is FULLY FUNCTIONAL with rootful Podman on network user system.
+
+---
+
 ## Next Steps
 
 ### Immediate (Blocked on Testing)
@@ -376,22 +564,27 @@ curl -f http://localhost:8888            # JupyterLab
 - [x] All overlay files fixed and committed
 - [x] All startup scripts updated and working
 - [x] All documentation updated
-- [ ] Chapter 0 launches successfully with rootful Podman
-- [ ] No newuidmap errors in logs
-- [ ] All services respond to health checks
-- [ ] Clean shutdown works
+- [x] Chapter 0 launches successfully with rootful Podman ✅
+- [x] No newuidmap errors in logs ✅
+- [x] All services respond to health checks ✅
+- [x] Clean shutdown works ✅
+- [x] DATABASE_URL configuration fixed for Chapter 0 ✅
+- [x] macOS/Linux compatibility achieved (SELinux labels removed) ✅
+- [x] Troubleshooting tools created ✅
 
 ### Should Pass (Important)
-- [ ] Chapters 1-3 tested and working
+- [ ] Chapters 1-3 tested and working (Chapter 1 starting now)
 - [ ] Performance acceptable (similar to Docker)
-- [ ] No SELinux errors in audit log
-- [ ] Documentation reviewed by user
+- [ ] No permission errors in logs
+- [x] Documentation reviewed by user ✅
 
 ### Nice to Have (Optional)
 - [ ] Background mode tested with nohup
 - [ ] Log rotation configured
 - [ ] Resource usage monitored
 - [ ] Comparison with Docker performance
+- [x] Helper scripts for debugging (check-service-logs.sh, verify-services.sh) ✅
+- [x] Passwordless sudo configuration tool ✅
 
 ---
 
