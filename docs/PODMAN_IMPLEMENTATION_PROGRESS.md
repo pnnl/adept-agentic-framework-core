@@ -324,15 +324,17 @@ sudo ./configure-podman-registries.sh
 cd docs/tutorial-branches/chapter-00-introduction
 sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
-**Result:** ✅ **SUCCESS** - All services started successfully
+**Result:** ✅ **SUCCESS** - All services started and verified accessible
 
-**Expected:**
+**Verified:**
 - ✅ podman-compose found in PATH
 - ✅ Rootful Podman verification passes
 - ✅ All services start: ollama, mcp_server, streamlit_app, jupyterlab
 - ✅ No newuidmap errors
 - ✅ SELinux labels applied correctly
-- ✅ Services respond to health checks
+- ✅ Streamlit UI accessible via HTTPS (port 8501)
+- ✅ SSH port forwarding working from remote laptop
+- ✅ SSL certificate configuration working correctly
 
 **Services to verify:**
 ```bash

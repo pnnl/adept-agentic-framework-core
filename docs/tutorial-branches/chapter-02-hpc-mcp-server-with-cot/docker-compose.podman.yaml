@@ -2,9 +2,9 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Adds SELinux labels for volume mounts (:Z suffix for private, :z for shared)
 # - Uses AppArmor unconfined for consistent security policy in rootful mode
 # - REQUIRES rootful Podman due to network user UID limitations
+# - Host directory permissions fixed by startup script for container user access
 version: '3.8'
 
 services:
@@ -12,30 +12,14 @@ services:
     # Podman-specific: consistent security policy
     security_opt:
       - apparmor=unconfined
-    volumes:
-      # Add :Z suffix for SELinux private volume labeling
-      # :Z = private unshared label (exclusive to this container)
-      - ./data:/app/data:Z
-      # :z = shared label (can be shared across containers)
-      - shared_uploads:/app/data/uploaded_files:z
 
   streamlit_app:
     security_opt:
       - apparmor=unconfined
-    volumes:
-      - ./data:/app/data:Z
-      - shared_uploads:/app/data/uploaded_files:z
 
   hpc_mcp_server:
     security_opt:
       - apparmor=unconfined
-    volumes:
-      # BLAST databases need SELinux context
-      - ./blast_databases:/blast_databases:Z
-      # Shared uploads with :z for cross-container sharing
-      - shared_uploads:/app/data/uploaded_files:z
-      # Data directory for HPC server
-      - ./data:/app/data:Z
 
 # Volume definitions remain the same
 # Podman handles volumes identically to Docker

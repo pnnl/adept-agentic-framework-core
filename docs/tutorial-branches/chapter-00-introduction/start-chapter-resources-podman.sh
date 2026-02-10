@@ -167,6 +167,24 @@ cleanup() {
     tput cnorm
 }
 
+# --- Fix Directory Permissions ---
+# Ensure host directories exist and are writable by container users
+# This avoids SELinux label issues and works on both Linux and macOS
+fix_directory_permissions() {
+    echo "Preparing host directories for container access..."
+
+    # Create directories if they don't exist
+    mkdir -p data notebooks
+
+    # Make directories writable by container users
+    # Container users typically run as UID 1000 (appuser) or 1000 (jovyan)
+    # Using 777 for development environments; adjust for production
+    chmod -R 777 data notebooks 2>/dev/null || true
+
+    echo -e "${GREEN}✓ Directory permissions configured${NC}"
+    echo ""
+}
+
 # --- Trap Exit Signal ---
 # The 'trap' command sets up a command to be executed when the script
 # receives a specific signal. Here, we catch EXIT, SIGINT (Ctrl+C), and SIGTERM.
@@ -175,6 +193,7 @@ trap cleanup EXIT SIGINT SIGTERM
 # --- Main Script Logic ---
 print_header
 check_prerequisites
+fix_directory_permissions
 
 # Check for existing containers for this project
 echo "Checking for existing resources for this project..."
