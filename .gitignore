@@ -111,3 +111,7 @@ data-old/*
 *.bzip2
 *.sh~
 *.py~
+
+# Sensitive setup scripts with credentials
+**/setup-claude-bedrock.sh
+setup-claude-bedrock.sh
