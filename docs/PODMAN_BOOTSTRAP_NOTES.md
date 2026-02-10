@@ -266,6 +266,68 @@ All documentation now includes:
 - Virtual environment activation
 - Prerequisites clarification
 
+## Resolution Update (2026-02-09 17:40)
+
+### Attempt 3: Subuid/Subgid Configuration Applied
+
+**Action taken:**
+```bash
+sudo usermod --add-subuids 100000-165535 rigo160
+sudo usermod --add-subgids 100000-165535 rigo160
+```
+
+**Verification:**
+```bash
+$ grep rigo160 /etc/subuid /etc/subgid
+/etc/subuid:rigo160:100000:65536
+/etc/subgid:rigo160:100000:65536
+```
+
+**Test result:**
+```
+Error: newuidmap: Target process is owned by a different user
+uid:316305 pw_uid:316305 st_uid:316305
+```
+
+**Root cause identified:**
+- User UID is 316305 (very high, indicates LDAP/network user)
+- Subuid/subgid ranges were added but newuidmap fails
+- This is a known issue with network/LDAP users in rootless Podman
+- The system's newuidmap doesn't properly handle high UIDs with subordinate ranges
+
+**References:**
+- https://github.com/containers/podman/issues/2898
+- https://github.com/shadow-maint/shadow/issues/158
+
+### Decision: Use Docker Instead
+
+**Discovery:**
+- User is already member of `docker` group (GID 318)
+- Docker daemon is running and accessible
+- Test passed: `docker run --rm hello-world`
+
+**Rationale:**
+1. **Docker works immediately** - No additional configuration needed
+2. **Full chapter support** - Docker supports all chapters (0-6)
+3. **Network user limitations** - Rootless Podman has known issues with LDAP/NIS users
+4. **Time efficiency** - Can deploy now vs troubleshooting newuidmap
+5. **Podman still available** - Can revisit rootful Podman for specific use cases
+
+**Implementation:**
+Launched Chapter 0 with Docker in background mode:
+```bash
+cd docs/tutorial-branches/chapter-00-introduction
+nohup ./start-chapter-resources.sh > logs/chapter-00-docker-$(date +%Y%m%d_%H%M%S).log 2>&1 &
+```
+
+### Lessons Learned
+
+1. **Check existing infrastructure first** - Docker was already configured
+2. **Network users complicate rootless** - LDAP/NIS users have special challenges
+3. **Docker group membership = ready to use** - No additional setup needed
+4. **Podman rootful still viable** - For specific HPC use cases, can use `sudo -E`
+5. **VFS storage works** - When we did get Podman working (hello-world), VFS driver succeeded
+
 ## Next Steps
 
 To fully enable Podman on this node:
