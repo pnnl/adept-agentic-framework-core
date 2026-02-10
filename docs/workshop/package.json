@@ -1,0 +1,23 @@
+{
+  "name": "adept-workshop-diagrams",
+  "version": "1.0.0",
+  "description": "Mermaid diagram rendering for ADEPT Workshop",
+  "private": true,
+  "scripts": {
+    "render": "bash render-diagrams.sh",
+    "render:python": "python3 render-diagrams.py",
+    "clean": "rm -rf diagrams .tmp",
+    "install:global": "npm install -g @mermaid-js/mermaid-cli"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.4.1"
+  },
+  "keywords": [
+    "mermaid",
+    "diagrams",
+    "workshop",
+    "adept"
+  ],
+  "author": "PNNL ADEPT Team",
+  "license": "SEE LICENSE IN ../../LICENSE"
+}
