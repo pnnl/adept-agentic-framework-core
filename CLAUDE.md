@@ -46,8 +46,12 @@ docker compose down
 
 **Using Podman (Alternative - Chapters 0-3 only)**:
 ```bash
-# Install podman-compose
-pip install podman-compose
+# One-time setup: Bootstrap Podman Python environment
+./bootstrap-podman-env.sh
+
+# Activate environment
+source .venv-podman/bin/activate
+# OR: source ./activate-podman-env.sh
 
 # Rootless mode (Chapters 0-2)
 cd docs/tutorial-branches/chapter-01-main
@@ -59,9 +63,11 @@ sudo -E ./start-chapter-resources-podman.sh
 
 # Key differences:
 # - Uses podman-compose instead of docker compose
+# - Requires Python virtual environment with podman libraries
 # - Overlay file docker-compose.podman.yaml automatically included
 # - Chapter 3 requires rootful Podman (sudo -E)
 # - SELinux contexts added to volume mounts (:Z suffix)
+# - VFS storage driver for NFS/network filesystems
 ```
 
 **Local Development (separate terminals)**:

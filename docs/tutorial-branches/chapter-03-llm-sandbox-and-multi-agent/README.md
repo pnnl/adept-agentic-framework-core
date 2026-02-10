@@ -147,15 +147,27 @@ The `docker-compose.yml` in the project root defines the services, their shared 
 
 **Podman** provides a Docker-compatible container runtime without requiring a daemon. Chapter 3 supports Podman but requires **rootful mode** due to sandbox security requirements.
 
+**One-Time Setup:**
+Bootstrap the Podman Python environment (from project root):
+```bash
+cd ../../..  # Navigate to project root
+./bootstrap-podman-env.sh
+
+# Activate environment
+source .venv-podman/bin/activate
+# OR: source ./activate-podman-env.sh
+```
+
 **Quick Start:**
 ```bash
+# From this chapter directory (with environment activated)
 # Chapter 3 REQUIRES rootful Podman (sudo)
 sudo -E ./start-chapter-resources-podman.sh
 ```
 
 **Requirements:**
 - Podman 4.0+
-- podman-compose: `pip install podman-compose`
+- Python 3.9+ (for bootstrap script)
 - **Root access** (sudo) for sandbox features
 
 **⚠️ Security Note:**

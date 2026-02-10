@@ -42,7 +42,18 @@ Podman provides a Docker-compatible interface without requiring a daemon. Ideal 
 
 **Prerequisites:**
 - Podman 4.0+
-- podman-compose: `pip install podman-compose`
+- Python 3.9+
+
+**Quick Setup:**
+```bash
+# Bootstrap Podman Python environment (one-time setup)
+./bootstrap-podman-env.sh
+
+# Activate the environment
+source .venv-podman/bin/activate
+# OR use the helper:
+source ./activate-podman-env.sh
+```
 
 **Rootless mode (Chapters 0-2):**
 ```bash

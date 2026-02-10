@@ -196,15 +196,26 @@ This setup launches two distinct services for OpenWebUI: the `openwebui_backend`
 
 **Podman** provides a Docker-compatible container runtime without requiring a daemon. This chapter supports Podman deployment.
 
+**One-Time Setup:**
+Bootstrap the Podman Python environment (from project root):
+```bash
+cd ../../..  # Navigate to project root
+./bootstrap-podman-env.sh
+
+# Activate environment
+source .venv-podman/bin/activate
+# OR: source ./activate-podman-env.sh
+```
+
 **Quick Start:**
 ```bash
-# From this chapter directory
+# From this chapter directory (with environment activated)
 ./start-chapter-resources-podman.sh
 ```
 
 **Requirements:**
 - Podman 4.0+
-- podman-compose: `pip install podman-compose`
+- Python 3.9+ (for bootstrap script)
 
 **Compatibility:**
 - ✅ Chapters 0-2: Full rootless Podman support
