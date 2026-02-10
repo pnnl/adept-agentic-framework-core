@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ADEPT (Agentic Discovery and Exploration Platform for Tools) is a modular, pedagogical framework for building agentic scientific applications using the Model Context Protocol (MCP) and multiple UI frontends. This is fundamentally a **teaching tool** designed to demonstrate how LLMs, agentic tools, and workflows integrate with scientific computing.
 
+**For deployment guidance:** See [docs/PLATFORM_ENGINEER_ONBOARDING.md](docs/PLATFORM_ENGINEER_ONBOARDING.md)
+
 **Key Architecture**: The framework separates concerns across multiple services:
 - **MCP Servers** (3 types): Main MCP server, HPC MCP server, Sandbox MCP server - host tools over MCP protocol
 - **Agent Orchestration**: Langchain/LangGraph-based agent that uses tools to fulfill user requests

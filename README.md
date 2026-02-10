@@ -107,13 +107,21 @@ If you use ADEPT in your research, please cite:
 
 ## Documentation & Resources
 
+**Getting Started:**
+- [Platform Engineer Onboarding Guide](docs/PLATFORM_ENGINEER_ONBOARDING.md) - **START HERE** for deployment
 - [Tutorial: Setup, Tool Development, Example Workflows](docs/agentic-framework-tutorial.md)
 - [Tool User Guide](docs/agentic-framework-tool-user-guide.md)
 - [Sample User Queries](docs/agentic-framework-user-queries.md)
-- [Podman Deployment Guide](docs/podman-deployment-guide.md) - Alternative to Docker
+
+**Container Runtimes:**
+- [Podman Quick Start](docs/PODMAN_QUICKSTART.md) - Streamlined Podman setup
+- [Podman Deployment Guide](docs/podman-deployment-guide.md) - Comprehensive Podman reference
 - [Podman Test Procedures](docs/test-procedures-podman.md) - Testing with Podman
-- [Licenses](docs/agentic-framework-licenses.md)
+- [Podman Bootstrap Notes](docs/PODMAN_BOOTSTRAP_NOTES.md) - Issue log and solutions
+
+**Advanced:**
 - [Helm/Kubernetes Deployment Guide](infra/helm/README.md)
+- [Licenses](docs/agentic-framework-licenses.md)
 
 ---
 

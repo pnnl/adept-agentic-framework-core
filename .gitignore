@@ -115,4 +115,11 @@ data-old/*
 # Sensitive setup scripts with credentials
 **/setup-claude-bedrock.sh
 setup-claude-bedrock.sh
-.venv-podman
+
+# Podman virtual environment
+.venv-podman/
+activate-podman-env.sh
+
+# Launch logs
+logs/
+*.pid
