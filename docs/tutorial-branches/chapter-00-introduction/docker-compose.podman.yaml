@@ -2,24 +2,24 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Adds SELinux labels for volume mounts (:Z suffix)
-# - Disables SELinux isolation for compatibility
-# - Fully rootless compatible
+# - Adds SELinux labels for volume mounts (:Z suffix for private, :z for shared)
+# - Uses AppArmor unconfined for consistent security policy in rootful mode
+# - REQUIRES rootful Podman due to network user UID limitations
 # - Platform specifications removed from base compose file
 version: '3.8'
 
 services:
   ollama:
-    # Podman-specific: disable SELinux labels if causing issues
+    # Podman-specific: consistent security policy
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # SELinux context label for private volume access
       - ollama_data:/root/.ollama:Z
 
   mcp_server:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # Add :Z suffix for SELinux private volume labeling
       - ./data:/app/data:Z
@@ -28,13 +28,13 @@ services:
 
   streamlit_app:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       - shared_uploads:/app/data/uploaded_files:z
 
   jupyterlab:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # SELinux context for bind mounts
       - ./data:/home/jovyan/work/data:Z

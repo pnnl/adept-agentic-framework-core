@@ -145,7 +145,11 @@ The `docker-compose.yml` in the project root defines the services, their shared 
 
 ### Alternative: Running with Podman
 
-**Podman** provides a Docker-compatible container runtime without requiring a daemon. Chapter 3 supports Podman but requires **rootful mode** due to sandbox security requirements.
+**Podman** provides a Docker-compatible container runtime without requiring a daemon. Chapter 3 supports Podman but **ALWAYS requires rootful mode** for two reasons:
+1. Sandbox server uses `nsjail` which requires privileged mode
+2. Network/LDAP users cannot use rootless Podman (newuidmap limitation)
+
+> **⚠️ IMPORTANT:** ALL users must use rootful Podman (sudo) for Chapter 3, regardless of user type.
 
 **One-Time Setup:**
 Bootstrap the Podman Python environment (from project root):
@@ -161,21 +165,22 @@ source .venv-podman/bin/activate
 **Quick Start:**
 ```bash
 # From this chapter directory (with environment activated)
-# Chapter 3 REQUIRES rootful Podman (sudo)
-sudo -E ./start-chapter-resources-podman.sh
+# Chapter 3 REQUIRES rootful Podman with PATH preservation
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
 **Requirements:**
 - Podman 4.0+
 - Python 3.9+ (for bootstrap script)
-- **Root access** (sudo) for sandbox features
+- **Root access** (sudo) - required for all users
 
 **⚠️ Security Note:**
-Chapter 3's sandbox server uses `nsjail` which requires privileged container mode. This must run with rootful Podman (sudo). Only use in trusted development environments.
+Chapter 3's sandbox server uses `nsjail` which requires privileged container mode. This must run with rootful Podman (sudo). Additionally, network/LDAP users (high UIDs) cannot use rootless Podman at all due to newuidmap limitations. Rootful Podman has a similar security model to Docker daemon and is acceptable for HPC development environments, but should only be used in trusted networks.
 
-**Compatibility:**
-- ✅ Chapters 0-2: Full rootless Podman support
-- ⚠️ Chapter 3: Requires rootful Podman (`sudo -E`)
+**Why rootful mode is required:**
+1. **Sandbox security:** nsjail needs privileged container mode for namespace isolation
+2. **Network users:** LDAP/NIS users with high UIDs (>100000) cannot use rootless Podman
+3. **Known limitation:** newuidmap utility doesn't support network authentication (unfixable)
 
 **Alternative:** If uncomfortable with rootful mode, use Docker for Chapter 3:
 ```bash

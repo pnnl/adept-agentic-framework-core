@@ -1,5 +1,11 @@
 # Podman Deployment Guide for ADEPT Framework
 
+> **⚠️ IMPORTANT: Network/LDAP User Limitation**
+>
+> If you're on a system with network authentication (LDAP/NIS) and have a high UID (>100000), **rootful Podman (sudo) is REQUIRED** for all chapters. Rootless mode will not work due to newuidmap limitations. See [Known Issues](#known-issues-and-limitations) for details.
+>
+> **Quick solution:** Use `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh` for all chapters.
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
@@ -201,7 +207,9 @@ See [PODMAN_QUICKSTART.md](PODMAN_QUICKSTART.md) for detailed bootstrap usage.
 
 ## Rootless vs Rootful Mode
 
-### Rootless Mode (Chapters 0-2)
+> **IMPORTANT:** On systems with network/LDAP users (high UIDs), rootful Podman (sudo) is REQUIRED for all chapters due to newuidmap limitations. See [Known Issues](#known-issues-and-limitations) for details.
+
+### Rootless Mode (Ideal for Standard Users)
 
 **What is it?**
 Rootless mode allows Podman to run containers as a non-root user without requiring sudo or elevated privileges.
@@ -212,21 +220,33 @@ Rootless mode allows Podman to run containers as a non-root user without requiri
 - Safe for multi-tenant systems
 - Default recommended mode for development
 
-**How to use:**
+**Limitations:**
+- ⚠️ **Does not work with network/LDAP users** - Users with high UIDs (>100000) from LDAP/NIS cannot use rootless mode due to newuidmap utility limitations
+- ⚠️ This is a known unfixable issue (see [containers/podman#2898](https://github.com/containers/podman/issues/2898))
+- Requires properly configured subuid/subgid ranges in `/etc/subuid` and `/etc/subgid`
+
+**How to use (if your user supports it):**
 ```bash
-# Simply run the script as your normal user
+# Check if you're a network user (high UID indicates LDAP/NIS)
+id -u  # If > 100000, you likely need rootful mode
+
+# If rootless is supported, run without sudo
 cd docs/tutorial-branches/chapter-01-main
 ./start-chapter-resources-podman.sh
 ```
 
-**Supported Chapters:** 0, 1, 2
+**Supported Chapters:** 0, 1, 2 (if rootless works for your user)
 
 ---
 
-### Rootful Mode (Chapter 3 Only)
+### Rootful Mode (Required for Network Users and Chapter 3)
 
 **What is it?**
-Rootful mode runs Podman with root privileges, similar to Docker's default behavior.
+Rootful mode runs Podman with root privileges using sudo, similar to Docker's default behavior.
+
+**When required:**
+1. **Network/LDAP users (ALL CHAPTERS)** - Users with high UIDs cannot use rootless mode
+2. **Chapter 3 sandbox features** - nsjail requires privileged mode for code sandboxing
 
 **Why required for Chapter 3?**
 The `sandbox_mcp_server` uses **nsjail** for code sandboxing, which requires:
@@ -238,16 +258,22 @@ The `sandbox_mcp_server` uses **nsjail** for code sandboxing, which requires:
 - ⚠️ Containers run with elevated host privileges
 - ⚠️ Potential for container escape if misconfigured
 - ⚠️ Should only be used in trusted development environments
-- ⚠️ Not recommended for production or multi-tenant systems
+- ⚠️ Similar security model to Docker daemon
+- ⚠️ Acceptable for HPC/scientific computing environments
 
 **How to use:**
 ```bash
-# Run with sudo and -E flag to preserve environment variables
-cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
-sudo -E ./start-chapter-resources-podman.sh
+# Run with sudo, preserving PATH for podman-compose
+cd docs/tutorial-branches/chapter-XX-name
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+
+# Or with -E flag to preserve all environment variables (.env file, etc.)
+sudo -E env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
-**Note:** The script will display a warning and require confirmation before proceeding.
+**Important:** The `env "PATH=$PATH"` is required because sudo resets PATH and won't find podman-compose installed in `~/.local/bin`.
+
+**Note:** Chapter 3 script will display an additional warning about privileged mode and require confirmation before proceeding.
 
 ---
 
@@ -420,7 +446,43 @@ podman image prune -a -f
 
 ## Known Issues and Limitations
 
-### 1. Platform Warnings
+### 1. Network/LDAP User Limitation (CRITICAL)
+
+**Issue:** Users with network/LDAP authentication (high UIDs > 100000) **cannot use rootless Podman** at all.
+
+**Symptoms:**
+```
+newuidmap: Target process is owned by a different user
+uid:316305 pw_uid:316305 st_uid:316305
+```
+
+**Root Cause:**
+- The `newuidmap` utility doesn't properly handle high UIDs with subordinate UID/GID ranges
+- This is a known unfixable limitation in the shadow-utils package
+- Affects NIS, LDAP, and other network authentication systems common in HPC environments
+
+**Solution:** **Use rootful Podman (sudo) for ALL chapters:**
+
+```bash
+# Check if you're affected (high UID indicates network user)
+id -u  # If > 100000, you MUST use rootful mode
+
+# Launch any chapter with rootful Podman
+cd docs/tutorial-branches/chapter-XX-name
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
+**Security note:** Rootful Podman has a similar security model to Docker daemon. It's acceptable for HPC development environments but should only be used in trusted networks.
+
+**References:**
+- [containers/podman#2898](https://github.com/containers/podman/issues/2898)
+- [shadow-maint/shadow#158](https://github.com/shadow-maint/shadow/issues/158)
+
+**Workaround:** If you have Docker available and are uncomfortable with rootful Podman, use Docker instead. All chapters support both.
+
+---
+
+### 2. Platform Warnings
 
 **Issue:** Podman may display warnings about `platform: linux/amd64` specifications.
 
@@ -431,7 +493,7 @@ WARNING: platform linux/amd64 is ignored
 
 **Solution:** This is expected behavior. The Podman overlay files set `platform: null` to suppress this warning, but you may still see it from the base compose file. It's safe to ignore.
 
-### 2. SELinux Contexts
+### 3. SELinux Contexts
 
 **Issue:** On SELinux-enforcing systems (Fedora, RHEL), volume mounts may fail with permission denied errors.
 
@@ -451,14 +513,15 @@ sudo setenforce 0
 podman unshare chown -R $(id -u):$(id -g) ./data
 ```
 
-### 3. Socket Path Differences
+### 4. Socket Path Differences
 
 **Issue:** Chapter 3 sandbox server expects Docker socket at `/var/run/docker.sock`.
 
-**Solution:** The Podman overlay mounts Podman's socket at the Docker location:
+**Solution:** The Podman overlay mounts Podman's socket at the Docker location with shared SELinux label:
 ```yaml
 volumes:
-  - /run/podman/podman.sock:/var/run/docker.sock:Z
+  # :z = shared label (socket can be accessed by multiple containers)
+  - /run/podman/podman.sock:/var/run/docker.sock:z
 ```
 
 **Note:** This only works with rootful Podman. Rootless Podman sockets are located at:
@@ -467,7 +530,9 @@ $XDG_RUNTIME_DIR/podman/podman.sock
 # Typically: /run/user/1000/podman/podman.sock
 ```
 
-### 4. Privileged Mode Requirement (Chapter 3)
+However, **rootless mode is not functional** on systems with network users (see issue #1).
+
+### 5. Privileged Mode Requirement (Chapter 3)
 
 **Issue:** The `llm-sandbox` package uses `nsjail` which requires privileged mode.
 
@@ -481,7 +546,7 @@ $XDG_RUNTIME_DIR/podman/podman.sock
 2. **Use Docker instead** for Chapter 3 - Recommended if uncomfortable with rootful
 3. **Disable sandbox features** - Not documented, requires code changes
 
-### 5. Performance on macOS
+### 6. Performance on macOS
 
 **Issue:** Podman on macOS runs inside a virtual machine, adding overhead.
 
@@ -499,7 +564,7 @@ podman machine init --cpus=4 --memory=8192 --disk-size=100
 podman machine start
 ```
 
-### 6. Port Conflicts
+### 7. Port Conflicts
 
 **Issue:** Default ports may already be in use on your system.
 
@@ -517,7 +582,7 @@ ports:
   - "9080:8080"  # Change host port to 9080
 ```
 
-### 7. Image Building with Buildah
+### 8. Image Building with Buildah
 
 **Issue:** Podman uses Buildah for image building, which may behave slightly differently than Docker.
 

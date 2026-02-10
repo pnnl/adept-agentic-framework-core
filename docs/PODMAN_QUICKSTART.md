@@ -2,6 +2,19 @@
 
 Complete guide to get Podman up and running for ADEPT Framework, including solutions for common HPC/NFS environment issues.
 
+> **⚠️ CRITICAL: Network/LDAP User Limitation**
+>
+> **If you have a high UID (>100000), you MUST use rootful Podman (sudo) for ALL chapters.**
+>
+> Rootless Podman does not work with network/LDAP users due to newuidmap limitations. This is a known unfixable issue.
+>
+> **Check your UID:**
+> ```bash
+> id -u  # If > 100000, use rootful mode (sudo) for all steps below
+> ```
+>
+> **All launch commands below must use:** `sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh`
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
@@ -170,12 +183,34 @@ which podman-compose
 # Should show: /path/to/.venv-podman/bin/podman-compose
 ```
 
+### Launch Commands
+
+**For Standard Users (UID < 100000):**
+If rootless Podman works for you, simply run the scripts directly:
+```bash
+cd docs/tutorial-branches/chapter-XX-name
+./start-chapter-resources-podman.sh
+```
+
+**For Network/LDAP Users (UID > 100000) - REQUIRED:**
+All chapters must use rootful Podman with PATH preservation:
+```bash
+cd docs/tutorial-branches/chapter-XX-name
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
 ### Launch Chapter 0 (Introduction)
 
 **Interactive mode (foreground):**
 ```bash
 cd docs/tutorial-branches/chapter-00-introduction
+
+# Standard users:
 ./start-chapter-resources-podman.sh
+
+# Network users (high UID):
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+
 # Press Ctrl+C to stop
 ```
 
@@ -186,8 +221,12 @@ cd docs/tutorial-branches/chapter-00-introduction
 # Create logs directory
 mkdir -p ../../../logs
 
-# Launch with nohup and timestamped log
+# Standard users:
 nohup bash -c 'source ../../../.venv-podman/bin/activate && ./start-chapter-resources-podman.sh' \
+  > ../../../logs/chapter-00-podman-$(date +%Y%m%d_%H%M%S).log 2>&1 &
+
+# Network users (high UID):
+nohup sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh \
   > ../../../logs/chapter-00-podman-$(date +%Y%m%d_%H%M%S).log 2>&1 &
 
 # Note the PID
@@ -202,28 +241,34 @@ tail -f ../../../logs/chapter-00-podman-*.log
 ```bash
 cd docs/tutorial-branches/chapter-01-main
 
-# Interactive
+# Standard users:
 ./start-chapter-resources-podman.sh
 
-# OR Background with logging
-nohup bash -c 'source ../../../.venv-podman/bin/activate && ./start-chapter-resources-podman.sh' \
-  > ../../../logs/chapter-01-podman-$(date +%Y%m%d_%H%M%S).log 2>&1 &
+# Network users (high UID):
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
 ### Launch Chapter 2 (HPC MCP Server)
 
 ```bash
 cd docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot
+
+# Standard users:
 ./start-chapter-resources-podman.sh
+
+# Network users (high UID):
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
-### Launch Chapter 3 (Sandbox) - Rootful Required
+### Launch Chapter 3 (Sandbox) - Rootful ALWAYS Required
+
+Chapter 3 requires rootful Podman for ALL users due to nsjail privileged mode requirement:
 
 ```bash
 cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
 
-# MUST use sudo with -E flag
-sudo -E bash -c 'source /data/workspace/adept-agentic-framework-core/.venv-podman/bin/activate && ./start-chapter-resources-podman.sh'
+# All users MUST use sudo:
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
 ---

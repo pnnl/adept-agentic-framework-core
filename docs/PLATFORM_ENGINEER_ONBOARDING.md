@@ -314,6 +314,20 @@ docker compose up --build --remove-orphans > ../../../logs/chapter-01-docker-$(d
 
 ### Option B: Podman Setup (HPC/Rootless Environments)
 
+> **📘 Complete From-Scratch Guide Available**
+>
+> For a comprehensive step-by-step Podman deployment on a fresh system, see:
+> **[PLATFORM_ENGINEER_FROM_SCRATCH.md](PLATFORM_ENGINEER_FROM_SCRATCH.md)**
+>
+> This guide includes:
+> - Network/LDAP user detection and configuration
+> - Registry configuration (Docker Hub setup)
+> - Complete troubleshooting procedures
+> - Verification steps and testing procedures
+> - Maintenance and operational guidance
+>
+> The instructions below provide a quick overview. Use the from-scratch guide for detailed deployment.
+
 #### Install Podman
 
 **Rocky/RHEL:**

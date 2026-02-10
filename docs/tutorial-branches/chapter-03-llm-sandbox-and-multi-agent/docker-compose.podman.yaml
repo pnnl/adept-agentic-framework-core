@@ -2,17 +2,17 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Adds SELinux labels for volume mounts (:Z suffix)
-# - Disables SELinux isolation for compatibility
-# - REQUIRES ROOTFUL PODMAN for sandbox_mcp_server
+# - Adds SELinux labels for volume mounts (:Z suffix for private, :z for shared)
+# - Uses AppArmor unconfined for consistent security policy in rootful mode
+# - REQUIRES ROOTFUL PODMAN for sandbox_mcp_server and network user compatibility
 # - Podman socket path different from Docker
 version: '3.8'
 
 services:
   mcp_server:
-    # Podman-specific: disable SELinux labels if causing issues
+    # Podman-specific: consistent security policy
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # Add :Z suffix for SELinux private volume labeling
       # :Z = private unshared label (exclusive to this container)
@@ -22,14 +22,14 @@ services:
 
   streamlit_app:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       - ./data:/app/data:Z
       - shared_uploads:/app/data/uploaded_files:z
 
   hpc_mcp_server:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # BLAST databases need SELinux context
       - ./blast_databases:/blast_databases:Z
@@ -43,14 +43,14 @@ services:
     # This works with rootful Podman (run script with sudo)
     privileged: true
     security_opt:
-      - label=disable
       - apparmor=unconfined
     volumes:
       - ./data:/app/data:Z
       - shared_uploads:/app/data/uploaded_files:z
       # PODMAN-SPECIFIC: Use Podman socket path instead of Docker
       # For rootful Podman, socket is at /run/podman/podman.sock
-      - /run/podman/podman.sock:/var/run/docker.sock:Z
+      # :z = shared label (socket is shared across multiple containers)
+      - /run/podman/podman.sock:/var/run/docker.sock:z
     environment:
       # Override Docker-specific settings
       - PODMAN_MODE=rootful

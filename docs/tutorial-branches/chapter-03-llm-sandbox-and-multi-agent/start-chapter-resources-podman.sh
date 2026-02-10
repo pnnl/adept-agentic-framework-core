@@ -8,10 +8,19 @@
 # shutdown, and cleanup of containers and networks.
 #
 # CHAPTER 3 SPECIAL REQUIREMENTS:
-# - REQUIRES ROOTFUL PODMAN for sandbox functionality
+# - REQUIRES ROOTFUL PODMAN for sandbox functionality AND network user compatibility
 # - The sandbox_mcp_server uses nsjail which needs privileged mode
-# - Run with: sudo -E ./start-chapter-resources-podman.sh
+# - Network/LDAP users cannot use rootless Podman (newuidmap limitation)
+# - Run with: sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 # ==============================================================================
+
+# --- Pre-sudo PATH capture ---
+# Capture the original PATH and location of podman-compose before sudo resets it
+ORIGINAL_PATH="$PATH"
+PODMAN_COMPOSE_BIN=""
+if command -v podman-compose &> /dev/null; then
+    PODMAN_COMPOSE_BIN=$(command -v podman-compose)
+fi
 
 # --- Configuration and Setup ---
 # Color codes for better output
@@ -20,6 +29,39 @@ GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
 NC='\033[0m' # No Color
+
+# Check if running as root/sudo (required for rootful Podman)
+if [ "$EUID" -ne 0 ]; then
+    echo "=================================================================="
+    echo -e "${RED}ERROR: This script REQUIRES rootful Podman (sudo)${NC}"
+    echo "=================================================================="
+    echo ""
+    echo "Rootless Podman does not work with network/LDAP users (UID: $(id -u))"
+    echo "This is a known limitation of the newuidmap utility."
+    echo ""
+    echo "Additionally, Chapter 3 requires privileged mode for sandbox (nsjail)."
+    echo ""
+    echo "Please run with sudo preserving PATH:"
+    echo -e "  ${GREEN}sudo env \"PATH=\$PATH\" ./start-chapter-resources-podman.sh${NC}"
+    echo ""
+    echo "Or with -E flag (preserves environment):"
+    echo -e "  ${GREEN}sudo -E env \"PATH=\$PATH\" ./start-chapter-resources-podman.sh${NC}"
+    echo ""
+    echo "The PATH preservation ensures podman-compose is found."
+    echo "=================================================================="
+    exit 1
+fi
+
+# Restore PATH if it was captured before sudo
+if [ -n "$ORIGINAL_PATH" ] && [ -z "$PODMAN_COMPOSE_BIN" ]; then
+    export PATH="$ORIGINAL_PATH"
+elif [ -n "$PODMAN_COMPOSE_BIN" ]; then
+    # Add the directory containing podman-compose to PATH if not already there
+    PODMAN_COMPOSE_DIR=$(dirname "$PODMAN_COMPOSE_BIN")
+    if [[ ":$PATH:" != *":$PODMAN_COMPOSE_DIR:"* ]]; then
+        export PATH="$PODMAN_COMPOSE_DIR:$PATH"
+    fi
+fi
 
 # Function to print a formatted header
 print_header() {
@@ -64,24 +106,25 @@ check_prerequisites() {
         exit 1
     fi
 
-    echo -e "${GREEN}✓ Podman $(podman --version | awk '{print $3}')${NC}"
+    # Verify rootful Podman works
+    if ! podman ps >/dev/null 2>&1; then
+        echo -e "${RED}Error: Podman not accessible in rootful mode.${NC}"
+        echo "Check if Podman service is running: systemctl status podman"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Podman $(podman --version | awk '{print $3}') (rootful mode)${NC}"
     echo -e "${GREEN}✓ podman-compose $(podman-compose --version 2>&1 | head -n1)${NC}"
     echo ""
 }
 
 # --- Check for rootful mode ---
+# NOTE: The initial EUID check at the top already enforces rootful mode
+# This function now just provides informational warnings
 check_rootful_mode() {
     print_rootful_warning
 
-    # Check if running as root or with sudo
-    if [ "$EUID" -ne 0 ]; then
-        echo -e "${RED}Error: This chapter requires rootful Podman mode.${NC}"
-        echo -e "${RED}Please run with: ${YELLOW}sudo -E ./start-chapter-resources-podman.sh${NC}"
-        echo ""
-        exit 1
-    fi
-
-    # Confirm user wants to proceed
+    # Confirm user wants to proceed with privileged mode
     read -p "$(echo -e ${YELLOW}"Continue with rootful Podman? (y/N) "${NC})" -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then

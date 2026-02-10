@@ -123,11 +123,14 @@ The recommended way to build and run the application is using Docker Compose, wh
 
 ### Alternative: Running with Podman
 
-Podman provides a Docker-compatible interface without requiring a daemon. This chapter fully supports rootless Podman.
+Podman provides a Docker-compatible interface without requiring a daemon.
+
+> **⚠️ IMPORTANT:** On systems with network/LDAP authentication (high UID >100000), rootful Podman (sudo) is **REQUIRED**. Rootless mode will not work due to newuidmap limitations.
 
 1.  **Prerequisites:**
     *   Podman 4.0+ installed
     *   Python 3.9+
+    *   For network users: sudo access (rootful Podman required)
 
 2.  **One-Time Setup:**
     Bootstrap the Podman Python environment (from project root):
@@ -136,44 +139,49 @@ Podman provides a Docker-compatible interface without requiring a daemon. This c
     ./bootstrap-podman-env.sh
     ```
 
-    This creates a virtual environment with:
-    - podman Python library
-    - podman-compose
-    - python-dotenv and other dependencies
+    This creates a virtual environment with podman, podman-compose, and dependencies.
 
 3.  **Activate Environment:**
     ```bash
     # From project root
     source .venv-podman/bin/activate
-    # OR use helper script:
-    source ./activate-podman-env.sh
+    # OR: source ./activate-podman-env.sh
     ```
 
 4.  **Configuration:**
     *   Same `.env` configuration as Docker (see above)
 
 5.  **Run with Podman:**
+
+    *For standard users (UID < 100000):*
     ```bash
-    # From chapter directory
     cd docs/tutorial-branches/chapter-01-main
     ./start-chapter-resources-podman.sh
     ```
 
+    *For network/LDAP users (UID > 100000):*
+    ```bash
+    # Check your UID
+    id -u  # If > 100000, use rootful mode
+
+    cd docs/tutorial-branches/chapter-01-main
+    sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+    ```
+
     The script will:
     - Check for Podman and podman-compose
+    - Verify rootful mode for network users
     - Automatically include Podman-specific overlays
     - Build images and start containers
     - Handle clean shutdown with Ctrl+C
 
-4.  **Access:**
+6.  **Access:**
     *   Same endpoints as Docker:
         - Streamlit: http://localhost:8501
         - MCP Server: http://localhost:8080
 
-**Compatibility:**
-- ✅ Chapter 1: Full rootless Podman support
-- ✅ Chapter 0-2: Full rootless Podman support
-- ⚠️ Chapter 3: Requires rootful Podman (use `sudo -E`)
+**Why rootful mode for network users?**
+Network/LDAP users cannot use rootless Podman due to newuidmap limitations. This is a known unfixable issue. Rootful Podman has a similar security model to Docker daemon and is acceptable for HPC development environments.
 
 For detailed Podman setup and troubleshooting, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
     *   To stop the containers:

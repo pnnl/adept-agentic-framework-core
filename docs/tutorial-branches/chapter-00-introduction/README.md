@@ -196,6 +196,8 @@ This setup launches two distinct services for OpenWebUI: the `openwebui_backend`
 
 **Podman** provides a Docker-compatible container runtime without requiring a daemon. This chapter supports Podman deployment.
 
+> **⚠️ IMPORTANT:** On systems with network/LDAP authentication (high UID >100000), rootful Podman (sudo) is **REQUIRED**. Rootless mode will not work due to newuidmap limitations. See [PODMAN_BOOTSTRAP_NOTES.md](../../../docs/PODMAN_BOOTSTRAP_NOTES.md) for details.
+
 **One-Time Setup:**
 Bootstrap the Podman Python environment (from project root):
 ```bash
@@ -208,18 +210,32 @@ source .venv-podman/bin/activate
 ```
 
 **Quick Start:**
+
+*For standard users (UID < 100000):*
 ```bash
 # From this chapter directory (with environment activated)
 ./start-chapter-resources-podman.sh
 ```
 
+*For network/LDAP users (UID > 100000):*
+```bash
+# Check your UID first
+id -u  # If > 100000, use the command below
+
+# Launch with rootful Podman (preserves PATH for podman-compose)
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
 **Requirements:**
 - Podman 4.0+
 - Python 3.9+ (for bootstrap script)
+- For network users: sudo access (rootful Podman required)
 
-**Compatibility:**
-- ✅ Chapters 0-2: Full rootless Podman support
-- ⚠️ Chapter 3: Requires rootful Podman (`sudo -E ./start-chapter-resources-podman.sh`)
+**Why rootful mode for network users?**
+- Network/LDAP users cannot use rootless Podman (newuidmap limitation)
+- Known unfixable issue with high UIDs
+- Rootful Podman has similar security model to Docker daemon
+- Acceptable for HPC development environments
 
 For detailed Podman setup, troubleshooting, and feature comparison, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
 

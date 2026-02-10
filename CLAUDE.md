@@ -55,21 +55,29 @@ docker compose down
 source .venv-podman/bin/activate
 # OR: source ./activate-podman-env.sh
 
-# Rootless mode (Chapters 0-2)
+# Standard users (UID < 100000) - Rootless mode
 cd docs/tutorial-branches/chapter-01-main
 ./start-chapter-resources-podman.sh
 
-# Rootful mode (Chapter 3 - requires sandbox features)
+# Network/LDAP users (UID > 100000) - Rootful mode REQUIRED
+cd docs/tutorial-branches/chapter-01-main
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+
+# Chapter 3 - Rootful mode required for ALL users
 cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
-sudo -E ./start-chapter-resources-podman.sh
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
 # Key differences:
 # - Uses podman-compose instead of docker compose
 # - Requires Python virtual environment with podman libraries
 # - Overlay file docker-compose.podman.yaml automatically included
-# - Chapter 3 requires rootful Podman (sudo -E)
+# - Network/LDAP users MUST use rootful Podman (sudo) for all chapters
+# - Chapter 3 requires rootful Podman for sandbox features (all users)
 # - SELinux contexts added to volume mounts (:Z suffix)
 # - VFS storage driver for NFS/network filesystems
+# - PATH preservation required: sudo env "PATH=$PATH"
+
+# See docs/PODMAN_IMPLEMENTATION_PROGRESS.md for detailed status
 ```
 
 **Local Development (separate terminals)**:

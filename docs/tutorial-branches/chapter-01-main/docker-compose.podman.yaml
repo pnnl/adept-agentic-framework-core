@@ -2,16 +2,16 @@
 # This file is automatically included by start-chapter-resources-podman.sh
 #
 # KEY DIFFERENCES FROM DOCKER:
-# - Adds SELinux labels for volume mounts (:Z suffix)
-# - Disables SELinux isolation for compatibility
-# - Fully rootless compatible
+# - Adds SELinux labels for volume mounts (:Z suffix for private, :z for shared)
+# - Uses AppArmor unconfined for consistent security policy in rootful mode
+# - REQUIRES rootful Podman due to network user UID limitations
 version: '3.8'
 
 services:
   mcp_server:
-    # Podman-specific: disable SELinux labels if causing issues
+    # Podman-specific: consistent security policy
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       # Add :Z suffix for SELinux private volume labeling
       # :Z = private unshared label (exclusive to this container)
@@ -21,7 +21,7 @@ services:
 
   streamlit_app:
     security_opt:
-      - label=disable
+      - apparmor=unconfined
     volumes:
       - ./data:/app/data:Z
       - shared_uploads:/app/data/uploaded_files:z

@@ -123,3 +123,4 @@ activate-podman-env.sh
 # Launch logs
 logs/
 *.pid
+nohup*

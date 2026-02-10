@@ -328,6 +328,200 @@ nohup ./start-chapter-resources.sh > logs/chapter-00-docker-$(date +%Y%m%d_%H%M%
 4. **Podman rootful still viable** - For specific HPC use cases, can use `sudo -E`
 5. **VFS storage works** - When we did get Podman working (hello-world), VFS driver succeeded
 
+---
+
+## Configuration Fixes for Rootful Podman (2026-02-09 18:00)
+
+> **📋 Implementation Status:** See [PODMAN_IMPLEMENTATION_PROGRESS.md](PODMAN_IMPLEMENTATION_PROGRESS.md) for detailed progress tracking, test results, and verification checklist.
+
+After determining that rootless Podman cannot work with network users due to newuidmap limitations, we implemented rootful Podman as the solution. During this process, we discovered and fixed 8 configuration issues in the existing Podman overlay files and startup scripts.
+
+### Issues Fixed
+
+1. **Conflicting Security Options (HIGH)**
+   - **Problem:** `security_opt: label=disable` in all services disabled SELinux labeling
+   - **Impact:** Made volume labels (`:Z`, `:z`) ineffective, causing permission issues
+   - **Fix:** Removed `label=disable` from all services to allow SELinux labels to work
+   - **Files:** All 4 chapter overlay files
+
+2. **Inconsistent AppArmor Configuration (MEDIUM)**
+   - **Problem:** Only sandbox_mcp_server had `apparmor=unconfined`, other services lacked it
+   - **Impact:** Inconsistent security posture across services
+   - **Fix:** Added `apparmor=unconfined` to ALL services for consistent security policy
+   - **Files:** All 4 chapter overlay files
+
+3. **Podman Socket Label Too Restrictive (MEDIUM)**
+   - **Problem:** Chapter 3 mounted Podman socket with `:Z` (private) instead of `:z` (shared)
+   - **Impact:** Prevented shared access to socket across containers
+   - **Fix:** Changed socket mount from `:Z` to `:z` in sandbox_mcp_server
+   - **Files:** Chapter 3 overlay file
+
+4. **No Rootless/Rootful Detection (MEDIUM)**
+   - **Problem:** Scripts didn't detect or require rootful mode for network users
+   - **Impact:** Users hit confusing newuidmap errors
+   - **Fix:** Added EUID check at start of all scripts to require sudo
+   - **Files:** All 4 chapter startup scripts
+
+5. **Missing Rootful Verification (MEDIUM)**
+   - **Problem:** No check that rootful Podman actually works
+   - **Impact:** Silent failures if Podman service not running
+   - **Fix:** Added `podman ps` verification in prerequisite checks
+   - **Files:** All 4 chapter startup scripts
+
+6. **Unclear Error Messages (LOW)**
+   - **Problem:** No clear guidance when rootless mode fails
+   - **Impact:** Users don't understand why it failed or how to fix
+   - **Fix:** Added detailed error message explaining network user limitation and sudo requirement
+   - **Files:** All 4 chapter startup scripts
+
+7. **PATH Reset by sudo (MEDIUM)**
+   - **Problem:** `sudo` resets PATH, causing `podman-compose` to not be found (installed in `~/.local/bin`)
+   - **Impact:** Script fails with "command not found" even with correct sudo usage
+   - **Fix:** Scripts now capture PATH before sudo check and restore it, plus provide correct command in error message
+   - **Files:** All 4 chapter startup scripts
+
+8. **Registry Search Order (HIGH)**
+   - **Problem:** Podman searches Red Hat registry first for unqualified images, can't find Docker Hub images
+   - **Impact:** Build failures with "Repo not found" when pulling images like `jupyter/scipy-notebook:latest`
+   - **Fix:** Created `configure-podman-registries.sh` script to configure Docker Hub as primary search registry
+   - **Files:** New script in project root
+
+### Testing Results
+
+**Testing Status:** ✅ SUCCESSFUL
+
+**Chapter 0 - Attempt 1 (FAILED):**
+- Error: Podman tried to pull from Red Hat registry instead of Docker Hub
+- Fix applied: Created registries configuration script
+
+**Chapter 0 - Attempt 2 (SUCCESS):**
+- Date: 2026-02-09 20:30
+- All 4 services started successfully
+- Images pulled from docker.io (Docker Hub)
+- JupyterLab loaded with all extensions
+- No newuidmap errors
+- No SELinux permission errors
+- Log: logs/start-chapter-resources-podman.20260209-2030.log
+
+**Next test steps:**
+
+```bash
+# Step 1: Configure Podman registries for root
+sudo ./configure-podman-registries.sh
+
+# Step 2: Activate Podman environment
+source .venv-podman/bin/activate
+
+# Step 3: Launch with sudo and PATH preserved
+cd docs/tutorial-branches/chapter-00-introduction
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
+**Expected outcomes:**
+- ✅ podman-compose found via preserved PATH
+- ✅ Images pulled from docker.io (Docker Hub)
+- ✅ All services start successfully (ollama, mcp_server, streamlit_app, jupyterlab)
+- ✅ No newuidmap errors
+- ✅ SELinux labels working correctly (no permission errors)
+- ✅ Consistent AppArmor policy across all services
+- ✅ Clean shutdown with Ctrl+C
+
+### Usage for All Chapters
+
+All Podman chapters now require rootful mode:
+
+```bash
+# Step 1: One-time setup - Configure registries (REQUIRED ONCE)
+sudo ./configure-podman-registries.sh
+
+# Step 2: One-time bootstrap (if not done already)
+./bootstrap-podman-env.sh
+
+# Step 3: Activate environment (each session)
+source .venv-podman/bin/activate
+
+# Step 4: Launch any chapter with sudo preserving PATH
+cd docs/tutorial-branches/chapter-XX-name
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+
+# Or with -E flag (preserves all environment variables including .env):
+sudo -E env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
+**Important notes:**
+- The `configure-podman-registries.sh` script configures Podman to search Docker Hub for images
+- The `env "PATH=$PATH"` is required because sudo resets PATH and won't find podman-compose in `~/.local/bin`
+- Scripts will also attempt to restore the PATH automatically
+
+**Why rootful mode is required:**
+1. Network/LDAP users (high UIDs like 316305) cannot use rootless Podman
+2. newuidmap utility limitation with subordinate UID/GID ranges
+3. Known unfixable issue (see GitHub issues containers/podman#2898, shadow-maint/shadow#158)
+4. Chapter 3 additionally requires privileged mode for sandbox/nsjail
+
+**Security implications:**
+- Rootful Podman has similar security model to Docker daemon
+- Acceptable for HPC development environments
+- Use in trusted networks only
+- Containers still have SELinux and AppArmor restrictions
+
+### Configuration Changes Summary
+
+**Before (non-functional):**
+```yaml
+services:
+  mcp_server:
+    security_opt:
+      - label=disable  # Broke SELinux labels
+    volumes:
+      - ./data:/app/data:Z  # Label ignored
+```
+
+**After (functional):**
+```yaml
+services:
+  mcp_server:
+    security_opt:
+      - apparmor=unconfined  # Consistent policy
+    volumes:
+      - ./data:/app/data:Z  # Label now effective
+```
+
+### Files Modified
+
+**Overlay files (configuration fixes):**
+- `docs/tutorial-branches/chapter-00-introduction/docker-compose.podman.yaml`
+- `docs/tutorial-branches/chapter-01-main/docker-compose.podman.yaml`
+- `docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/docker-compose.podman.yaml`
+- `docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/docker-compose.podman.yaml`
+
+**Startup scripts (rootful mode enforcement):**
+- `docs/tutorial-branches/chapter-00-introduction/start-chapter-resources-podman.sh`
+- `docs/tutorial-branches/chapter-01-main/start-chapter-resources-podman.sh`
+- `docs/tutorial-branches/chapter-02-hpc-mcp-server-with-cot/start-chapter-resources-podman.sh`
+- `docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent/start-chapter-resources-podman.sh`
+
+### Verification Commands
+
+```bash
+# Check script requires sudo (should show error)
+./start-chapter-resources-podman.sh
+
+# Launch with sudo
+sudo -E ./start-chapter-resources-podman.sh
+
+# Verify services running (in another terminal)
+sudo podman ps
+
+# Check service logs
+sudo podman logs agentic_mcp_server
+sudo podman logs agentic_streamlit_app
+
+# Test endpoints
+curl -f http://localhost:8080/health  # MCP server
+curl -f http://localhost:8501          # Streamlit
+```
+
 ## Next Steps
 
 To fully enable Podman on this node:

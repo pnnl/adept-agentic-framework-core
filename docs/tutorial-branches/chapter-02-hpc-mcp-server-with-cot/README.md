@@ -137,6 +137,8 @@ The `docker-compose.yaml` in the project root defines the three services, their 
 
 **Podman** provides a Docker-compatible container runtime without requiring a daemon. This chapter supports Podman deployment.
 
+> **⚠️ IMPORTANT:** On systems with network/LDAP authentication (high UID >100000), rootful Podman (sudo) is **REQUIRED**. Rootless mode will not work due to newuidmap limitations.
+
 **One-Time Setup:**
 Bootstrap the Podman Python environment (from project root):
 ```bash
@@ -149,19 +151,29 @@ source .venv-podman/bin/activate
 ```
 
 **Quick Start:**
+
+*For standard users (UID < 100000):*
 ```bash
 # From this chapter directory (with environment activated)
 ./start-chapter-resources-podman.sh
 ```
 
+*For network/LDAP users (UID > 100000):*
+```bash
+# Check your UID first
+id -u  # If > 100000, use rootful mode
+
+# Launch with rootful Podman
+sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
+```
+
 **Requirements:**
 - Podman 4.0+
 - Python 3.9+ (for bootstrap script)
+- For network users: sudo access (rootful Podman required)
 
-**Compatibility:**
-- ✅ Chapter 2: Full rootless Podman support
-- ✅ Chapters 0-2: Full rootless Podman support
-- ⚠️ Chapter 3: Requires rootful Podman (`sudo -E ./start-chapter-resources-podman.sh`)
+**Why rootful mode for network users?**
+Network/LDAP users cannot use rootless Podman due to newuidmap limitations. This is a known unfixable issue. Rootful Podman has a similar security model to Docker daemon and is acceptable for HPC development environments.
 
 For detailed Podman setup, troubleshooting, and feature comparison, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
 

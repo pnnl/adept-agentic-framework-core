@@ -33,3 +33,4 @@ docker-compose.override.yml
 /data/*
 *~
 .env-*
+nohup*
