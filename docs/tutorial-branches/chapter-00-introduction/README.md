@@ -239,6 +239,45 @@ sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
 For detailed Podman setup, troubleshooting, and feature comparison, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
 
+**Testing:**
+
+For comprehensive testing of this chapter:
+```bash
+# Run full test suite
+sudo ../../../tests/podman/test-podman-deployment.sh 0
+
+# Quick smoke test
+../../../tests/podman/quick-test.sh 0
+```
+
+See [PODMAN_TESTING.md](../../../docs/PODMAN_TESTING.md) for complete testing documentation.
+
+**Troubleshooting Tools:**
+
+This chapter includes helper scripts to diagnose and fix common Podman issues:
+
+- **check-service-logs.sh** - Cross-reference logs with error highlighting
+  ```bash
+  sudo ./check-service-logs.sh summary  # Show only errors/warnings
+  sudo ./check-service-logs.sh health   # Check endpoint health
+  sudo ./check-service-logs.sh follow   # Live tail all services
+  ```
+
+- **verify-services.sh** - Comprehensive health checks
+  ```bash
+  sudo ./verify-services.sh  # Verify all services and endpoints
+  ```
+
+- **configure-sudo-nopasswd.sh** - Configure passwordless sudo (optional)
+  ```bash
+  sudo ./configure-sudo-nopasswd.sh  # Set up once to avoid password prompts
+  ```
+
+- **TROUBLESHOOTING.md** - Complete issue resolution guide including:
+  - DATABASE_URL configuration (PostgreSQL vs SQLite)
+  - Connection failures and permission errors
+  - Complete verification checklist
+
 ### Local Development (Alternative)
 
 You can also run the components locally, but you'll need to manage dependencies and separate processes yourself.
