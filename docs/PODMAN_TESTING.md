@@ -426,8 +426,8 @@ sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
 ## References
 
-- [PODMAN_IMPLEMENTATION_PROGRESS.md](PODMAN_IMPLEMENTATION_PROGRESS.md) - Implementation tracking
-- [PODMAN_BUGFIX_PROCESS.md](PODMAN_BUGFIX_PROCESS.md) - Bugfix methodology
-- [TROUBLESHOOTING.md](../docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md) - Chapter 0 troubleshooting
-- [test-podman-deployment.sh](../tests/podman/test-podman-deployment.sh) - Main test script
-- [tests/README.md](../tests/README.md) - Test suite overview
+- [docs/PODMAN_IMPLEMENTATION_PROGRESS.md](/docs/PODMAN_IMPLEMENTATION_PROGRESS.md) - Implementation tracking
+- [docs/PODMAN_BUGFIX_PROCESS.md](/docs/PODMAN_BUGFIX_PROCESS.md) - Bugfix methodology
+- [docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md](/docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md) - Chapter 0 troubleshooting
+- [tests/podman/test-podman-deployment.sh](/tests/podman/test-podman-deployment.sh) - Main test script
+- [tests/README.md](/tests/README.md) - Test suite overview

@@ -29,7 +29,7 @@ sudo ./tests/podman/test-podman-deployment.sh [0|1|2|3|all]
 ./tests/podman/quick-test.sh [0|1]
 ```
 
-See [tests/podman/README.md](podman/README.md) for detailed documentation.
+See [tests/podman/README.md](/tests/podman/README.md) for detailed documentation.
 
 ---
 
@@ -46,5 +46,5 @@ Planned additions:
 
 ## Documentation
 
-- [PODMAN_TESTING.md](../docs/PODMAN_TESTING.md) - Comprehensive testing guide
-- [PODMAN_IMPLEMENTATION_PROGRESS.md](../docs/PODMAN_IMPLEMENTATION_PROGRESS.md) - Implementation tracking
+- [docs/PODMAN_TESTING.md](/docs/PODMAN_TESTING.md) - Comprehensive testing guide
+- [docs/PODMAN_IMPLEMENTATION_PROGRESS.md](/docs/PODMAN_IMPLEMENTATION_PROGRESS.md) - Implementation tracking

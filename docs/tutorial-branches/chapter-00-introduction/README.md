@@ -241,16 +241,16 @@ For detailed Podman setup, troubleshooting, and feature comparison, see the [Pod
 
 **Testing:**
 
-For comprehensive testing of this chapter:
+For comprehensive testing of this chapter (run from project root):
 ```bash
 # Run full test suite
-sudo ../../../tests/podman/test-podman-deployment.sh 0
+sudo ./tests/podman/test-podman-deployment.sh 0
 
 # Quick smoke test
-../../../tests/podman/quick-test.sh 0
+./tests/podman/quick-test.sh 0
 ```
 
-See [PODMAN_TESTING.md](../../../docs/PODMAN_TESTING.md) for complete testing documentation.
+See [docs/PODMAN_TESTING.md](/docs/PODMAN_TESTING.md) for complete testing documentation.
 
 **Troubleshooting Tools:**
 
