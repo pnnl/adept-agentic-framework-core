@@ -6,6 +6,7 @@
   - [Prerequisites](#prerequisites)
   - [macOS Setup](#macos-setup)
   - [Windows Setup](#windows-setup)
+  - [Linux Setup](#linux-setup)
   - [Project Setup](#project-setup)
 - [Part 2: Adding a New MCP Tool (PubChem Chemical Search)](#part-2-adding-a-new-mcp-tool-pubchem-chemical-search)
   - [Step 2.1: Understanding PubChem PUG REST API](#step-21-understanding-pubchem-pug-rest-api)
@@ -39,7 +40,9 @@ Before you begin, ensure you have the following installed:
 
 1.  **Git**: For version control.
 2.  **Python**: Version 3.11 or higher.
-3.  **Docker Desktop**: For containerizing and running the application.
+3.  **Container Runtime**:
+    - **Docker Desktop** (Recommended for macOS/Windows): For containerizing and running the application.
+    - **Podman** (Alternative for Linux/HPC): Docker-compatible runtime, ideal for HPC environments. Supported for Chapters 0-3.
 4.  **Visual Studio Code (VS Code)**: Recommended code editor.
 
 ### macOS Setup
@@ -105,6 +108,65 @@ Before you begin, ensure you have the following installed:
         *   `Python` (Microsoft)
         *   `Docker` (Microsoft)
         *   `WSL` (Microsoft): Essential for working with projects inside WSL.
+
+### Linux Setup
+
+1.  **Git**: Most Linux distributions include Git. If not:
+    ```bash
+    # Debian/Ubuntu
+    sudo apt update && sudo apt install git
+
+    # RHEL/Rocky/AlmaLinux
+    sudo dnf install git
+    ```
+
+2.  **Python**: Install Python 3.11+:
+    ```bash
+    # Debian/Ubuntu
+    sudo apt install python3.11 python3.11-venv python3-pip
+
+    # RHEL/Rocky/AlmaLinux
+    sudo dnf install python3.11
+    ```
+
+3.  **Container Runtime** - Choose one:
+
+    **Docker (Option 1):**
+    ```bash
+    # Debian/Ubuntu
+    sudo apt install docker.io docker-compose
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker $USER  # Add your user to docker group
+    # Log out and back in for group changes to take effect
+
+    # RHEL/Rocky/AlmaLinux
+    sudo dnf install docker docker-compose
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker $USER
+    ```
+
+    **Podman (Option 2 - Recommended for HPC/Linux):**
+    ```bash
+    # Debian/Ubuntu
+    sudo apt install podman
+
+    # RHEL/Rocky/AlmaLinux
+    sudo dnf install podman
+
+    # After installation, follow Podman setup:
+    # See docs/PODMAN_QUICKSTART.md for complete setup
+    ```
+
+4.  **VS Code**: Download from [code.visualstudio.com](https://code.visualstudio.com/) or install via package manager:
+    ```bash
+    # Debian/Ubuntu (via snap)
+    sudo snap install code --classic
+    ```
+    *   **Recommended Extensions**:
+        *   `Python` (Microsoft)
+        *   `Docker` (Microsoft) - if using Docker
 
 ### Project Setup
 
@@ -608,13 +670,51 @@ The full tutorial is structured in a series of chapters, each building upon the 
 
 ### Running the Tutorial Chapters
 
-Each chapter in the `tutorial-branches` directory is a self-contained, runnable version of the framework at a specific stage of development. To make managing the Docker environment for each chapter simple and safe, every chapter directory now contains a lifecycle script.
+Each chapter in the `tutorial-branches` directory is a self-contained, runnable version of the framework at a specific stage of development. To make managing the container environment for each chapter simple and safe, every chapter directory contains lifecycle scripts.
+
+#### Using Docker (All Chapters)
 
 *   **How to Run:** To start the services for any chapter, navigate into its directory and execute the script:
     ```bash
     ./start-chapter-resources.sh
     ```
 *   **What it Does:** This script handles everything for you: it checks for existing containers, asks for permission to clean them up, starts all the necessary services, and provides a graceful shutdown with cleanup when you press `Ctrl+C`.
+
+#### Using Podman (Chapters 0-3 Only)
+
+Podman support is available for **Chapters 0-3** (Introduction through LLM Sandbox). Ideal for HPC environments or Linux systems.
+
+**One-time setup:**
+```bash
+# 1. Configure registries (requires sudo)
+sudo ./configure-podman-registries.sh
+
+# 2. Bootstrap Podman environment
+./bootstrap-podman-env.sh
+
+# 3. Activate environment (required each session)
+source .venv-podman/bin/activate
+```
+
+**Launch chapter:**
+```bash
+cd docs/tutorial-branches/chapter-00-introduction
+
+# Standard users (UID < 100000):
+./start-chapter-resources-podman.sh
+
+# Network/LDAP users (UID > 100000) - REQUIRED:
+sudo -E ./start-chapter-resources-podman.sh
+
+# Chapter 3 requires sudo for ALL users:
+cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
+sudo -E ./start-chapter-resources-podman.sh
+```
+
+**For complete Podman documentation, see:**
+- [docs/PODMAN_QUICKSTART.md](PODMAN_QUICKSTART.md) - Quick reference
+- [docs/PODMAN_TESTING.md](PODMAN_TESTING.md) - Testing and validation
+- [docs/podman-deployment-guide.md](podman-deployment-guide.md) - Comprehensive guide
 
 ### Understanding the Tools
 
