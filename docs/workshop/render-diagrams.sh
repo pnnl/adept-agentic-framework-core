@@ -20,22 +20,27 @@ echo -e "${BLUE}  ADEPT Workshop - Mermaid Diagram Renderer${NC}"
 echo -e "${BLUE}================================================================${NC}"
 echo ""
 
-# Check if mmdc is installed
-if ! command -v mmdc &> /dev/null; then
+# Check if mmdc is installed (check local first, then global)
+MMDC_CMD=""
+LOCAL_MMDC="$SCRIPT_DIR/node_modules/.bin/mmdc"
+
+if [ -x "$LOCAL_MMDC" ]; then
+    MMDC_CMD="$LOCAL_MMDC"
+    echo -e "${GREEN}✓ Found mmdc (local): $MMDC_CMD${NC}"
+elif command -v mmdc &> /dev/null; then
+    MMDC_CMD="mmdc"
+    echo -e "${GREEN}✓ Found mmdc (global): $(which mmdc)${NC}"
+else
     echo -e "${RED}Error: mermaid-cli (mmdc) not found${NC}"
     echo ""
     echo "Install it with:"
-    echo "  npm install -g @mermaid-js/mermaid-cli"
+    echo "  make install"
     echo ""
-    echo "Or install locally in this directory:"
-    echo "  cd $SCRIPT_DIR"
-    echo "  npm install"
-    echo "  export PATH=\"\$PATH:$SCRIPT_DIR/node_modules/.bin\""
+    echo "Or install globally:"
+    echo "  npm install -g @mermaid-js/mermaid-cli"
     echo ""
     exit 1
 fi
-
-echo -e "${GREEN}✓ Found mmdc: $(which mmdc)${NC}"
 echo ""
 
 # Check if source file exists
@@ -99,7 +104,7 @@ for mmd_file in "$TEMP_DIR"/diagram_*.mmd; do
     echo -n "  Rendering diagram $number... "
 
     # Render PNG (transparent background, high resolution)
-    if mmdc -i "$mmd_file" -o "$png_file" \
+    if "$MMDC_CMD" -i "$mmd_file" -o "$png_file" \
         -b transparent \
         -w 1920 \
         -H 1080 \
@@ -107,7 +112,7 @@ for mmd_file in "$TEMP_DIR"/diagram_*.mmd; do
         > /dev/null 2>&1; then
 
         # Render SVG
-        if mmdc -i "$mmd_file" -o "$svg_file" \
+        if "$MMDC_CMD" -i "$mmd_file" -o "$svg_file" \
             -b transparent \
             > /dev/null 2>&1; then
 

@@ -114,9 +114,6 @@ sequenceDiagram
 
     Agent-->>Streamlit: "I've added your note: 'Meeting at 3pm'"
     Streamlit-->>User: Display response
-
-    style Agent fill:#4A90E2,color:#fff
-    style MCP fill:#7ED321,color:#fff
 ```
 
 ---
@@ -393,8 +390,6 @@ sequenceDiagram
 
     Note over Agent: Synthesize results
     Agent-->>User: "Found Insulin protein<br/>15 potential drug compounds:<br/>1. Metformin (CID: 4091)<br/>2. Insulin glargine (CID: 5311281)<br/>..."
-
-    style Agent fill:#4A90E2,color:#fff
 ```
 
 ---
