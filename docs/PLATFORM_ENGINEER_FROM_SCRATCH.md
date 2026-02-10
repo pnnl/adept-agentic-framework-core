@@ -475,6 +475,82 @@ sudo podman logs agentic_mcp_server_ch00 2>&1 | grep -i "pull"
 
 ---
 
+## Testing and Validation
+
+### Automated Test Suite
+
+Validate your deployment with the comprehensive test suite:
+
+```bash
+# From project root
+
+# Test Chapter 0 (after deployment)
+sudo -E ./tests/podman/test-podman-deployment.sh 0
+
+# Quick smoke test
+./tests/podman/quick-test.sh 0
+```
+
+**Test Categories:**
+- ✅ Prerequisites (Podman, podman-compose, Python, registry config)
+- ✅ Environment setup (project structure, virtual env)
+- ✅ Chapter configuration (YAML syntax, SELinux labels, permissions)
+- ✅ Runtime validation (containers, logs, endpoints)
+- ✅ Chapter-specific configs (DATABASE_URL, permissions, etc.)
+
+**Example output:**
+```
+Total Tests:   20
+Passed:        17
+Failed:        0
+Skipped:       3
+
+TEST SUITE PASSED
+```
+
+See [PODMAN_TESTING.md](PODMAN_TESTING.md) for complete test suite documentation.
+
+### Helper Scripts
+
+**Chapter 0 troubleshooting tools** (in chapter directory):
+
+```bash
+cd docs/tutorial-branches/chapter-00-introduction
+
+# Cross-reference logs with error highlighting
+sudo ./check-service-logs.sh summary  # Errors only
+sudo ./check-service-logs.sh health   # Check endpoints
+sudo ./check-service-logs.sh follow   # Live tail
+
+# Comprehensive health verification
+sudo ./verify-services.sh
+
+# Configure passwordless sudo (optional)
+sudo ./configure-sudo-nopasswd.sh
+```
+
+**Cleanup stale processes** (from project root):
+
+```bash
+# Clean up orphaned containers and processes
+sudo ./scripts/cleanup-stale-processes.sh
+```
+
+Use this:
+- After interrupted deployments (Ctrl+C, nohup disconnect)
+- Before starting a new chapter
+- When switching between chapters
+
+**Available helper scripts:**
+- `tests/podman/test-podman-deployment.sh` - Comprehensive test suite
+- `tests/podman/quick-test.sh` - Fast smoke tests
+- `scripts/cleanup-stale-processes.sh` - Clean up stale processes
+- `docs/tutorial-branches/chapter-00-introduction/check-service-logs.sh` - Log monitoring
+- `docs/tutorial-branches/chapter-00-introduction/verify-services.sh` - Health checks
+- `docs/tutorial-branches/chapter-00-introduction/configure-sudo-nopasswd.sh` - Sudo config
+
+---
+
 ## Troubleshooting
 
 ### Common Issues and Solutions

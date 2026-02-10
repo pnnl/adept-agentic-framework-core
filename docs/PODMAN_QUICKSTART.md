@@ -489,6 +489,62 @@ pip list | grep podman
 
 ---
 
+## Testing and Validation
+
+### Automated Test Suite
+
+Comprehensive test suite for validating Podman deployments (Chapters 0-3):
+
+```bash
+# Run full test suite for a chapter
+sudo -E ./tests/podman/test-podman-deployment.sh 0    # Chapter 0
+sudo -E ./tests/podman/test-podman-deployment.sh all  # All chapters
+
+# Quick smoke test (no sudo required)
+./tests/podman/quick-test.sh 0
+./tests/podman/quick-test.sh 1
+```
+
+**Test Categories:**
+- Prerequisites (Podman, podman-compose, Python environment)
+- Environment configuration (.env files, registry setup)
+- Chapter-specific config (compose files, overlay files)
+- Runtime validation (container status, logs, endpoints)
+- Service health checks (API endpoints, databases)
+
+See [PODMAN_TESTING.md](PODMAN_TESTING.md) for complete testing documentation.
+
+### Helper Scripts
+
+**Cleanup stale processes:**
+```bash
+# Clean up orphaned containers and processes
+sudo ./scripts/cleanup-stale-processes.sh
+```
+
+**Chapter 0-specific helpers:**
+- `check-service-logs.sh` - Cross-reference logs with error highlighting
+- `verify-services.sh` - Health checks for all endpoints
+- `configure-sudo-nopasswd.sh` - Configure passwordless sudo for Podman
+
+**Example usage:**
+```bash
+cd docs/tutorial-branches/chapter-00-introduction
+
+# Check service logs with error highlighting
+./check-service-logs.sh summary    # Quick overview
+./check-service-logs.sh full       # Detailed logs
+./check-service-logs.sh follow     # Real-time monitoring
+
+# Verify all services are healthy
+./verify-services.sh
+
+# Configure passwordless sudo (one-time)
+./configure-sudo-nopasswd.sh
+```
+
+---
+
 ## Complete Setup Checklist
 
 - [ ] Podman installed (4.0+)
@@ -549,8 +605,10 @@ tail -f logs/chapter-01-podman-*.log
 ## Related Documentation
 
 - **Comprehensive Guide:** [docs/podman-deployment-guide.md](podman-deployment-guide.md)
+- **Testing Guide:** [docs/PODMAN_TESTING.md](PODMAN_TESTING.md) - Complete test suite documentation
 - **Test Procedures:** [docs/test-procedures-podman.md](test-procedures-podman.md)
 - **Bootstrap Notes:** [docs/PODMAN_BOOTSTRAP_NOTES.md](PODMAN_BOOTSTRAP_NOTES.md)
+- **Helper Scripts:** [scripts/README.md](/scripts/README.md) - Utility scripts documentation
 
 ---
 

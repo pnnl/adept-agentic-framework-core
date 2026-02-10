@@ -340,7 +340,7 @@ docker compose up --build --remove-orphans > ../../../logs/chapter-01-docker-$(d
 > 3. **PATH Preservation:** Use `sudo env "PATH=$PATH"` to find podman-compose
 > 4. **Tested Configuration:** Chapter 0 verified working with rootful Podman
 >
-> **Testing Status:** ✅ Chapter 0 functional | ⏳ Chapters 1-3 pending verification
+> **Testing Status:** ✅ Chapter 0 fully tested and verified | ✅ Comprehensive test suite available
 
 #### Check User Type (Critical)
 
@@ -431,6 +431,54 @@ nohup sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh \
 ```
 
 **Note:** PATH preservation (`env "PATH=$PATH"`) is required so sudo can find podman-compose.
+
+#### Validate Deployment with Test Suite
+
+After starting a chapter, validate it's working correctly:
+
+```bash
+# From project root
+
+# Run comprehensive test suite
+sudo -E ./tests/podman/test-podman-deployment.sh 1  # Test Chapter 1
+
+# Quick smoke test
+./tests/podman/quick-test.sh 1
+
+# Check service logs
+cd docs/tutorial-branches/chapter-01-main
+sudo ./check-service-logs.sh summary  # Errors only (Chapter 0 has this)
+```
+
+**Test Suite Features:**
+- Prerequisites validation (Podman, podman-compose, Python, registry)
+- Environment setup verification
+- Chapter configuration tests (YAML syntax, SELinux labels, permissions)
+- Runtime validation (containers, logs, endpoints)
+- Comprehensive reporting with pass/fail/skip counts
+
+See [PODMAN_TESTING.md](PODMAN_TESTING.md) for complete test suite documentation.
+
+#### Helper Scripts
+
+**Cleanup stale processes:**
+```bash
+# From project root
+sudo ./scripts/cleanup-stale-processes.sh
+```
+
+Use this:
+- After interrupted deployments (Ctrl+C, terminal disconnect)
+- Before starting a new chapter
+- When switching between chapters
+
+**Chapter 0 troubleshooting tools:**
+Chapter 0 includes additional helper scripts in its directory:
+- `check-service-logs.sh` - Log monitoring with error highlighting
+- `verify-services.sh` - Health checks for all endpoints
+- `configure-sudo-nopasswd.sh` - Configure passwordless sudo
+
+See [docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md](/docs/tutorial-branches/chapter-00-introduction/TROUBLESHOOTING.md) for complete guide.
 
 ---
 

@@ -69,11 +69,26 @@ cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
 sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 ```
 
+**Testing & Validation:**
+```bash
+# Test deployment
+sudo -E ./tests/podman/test-podman-deployment.sh [0|1|2|3|all]
+
+# Quick smoke test
+./tests/podman/quick-test.sh [0|1]
+
+# Clean up stale processes
+sudo ./scripts/cleanup-stale-processes.sh
+```
+
+See [docs/PODMAN_TESTING.md](docs/PODMAN_TESTING.md) for complete test suite documentation.
+
 **Documentation:**
 - [Platform Engineer From-Scratch Guide](docs/PLATFORM_ENGINEER_FROM_SCRATCH.md) - Complete deployment ⭐
 - [Podman Quick Start](docs/PODMAN_QUICKSTART.md) - Quick command reference
 - [Podman Deployment Guide](docs/podman-deployment-guide.md) - Comprehensive reference
 - [Podman Documentation Index](docs/PODMAN_DOCUMENTATION_INDEX.md) - Central index
+- [Podman Testing Guide](docs/PODMAN_TESTING.md) - Test suite and validation
 
 **Local Development:**
 
