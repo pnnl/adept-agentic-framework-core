@@ -34,6 +34,30 @@ For a detailed walkthrough, see the [Agentic Framework Tutorial](docs/agentic-fr
 
 **For OpenWebUI integration and advanced options, see the [tutorial](docs/agentic-framework-tutorial.md).**
 
+**Podman (Alternative Container Runtime):**
+
+Podman provides a Docker-compatible interface without requiring a daemon. Ideal for HPC environments and rootless container execution.
+
+**Supported Chapters:** 0-3 (Introduction through LLM Sandbox)
+
+**Prerequisites:**
+- Podman 4.0+
+- podman-compose: `pip install podman-compose`
+
+**Rootless mode (Chapters 0-2):**
+```bash
+cd docs/tutorial-branches/chapter-01-main
+./start-chapter-resources-podman.sh
+```
+
+**Rootful mode (Chapter 3 - sandbox features):**
+```bash
+cd docs/tutorial-branches/chapter-03-llm-sandbox-and-multi-agent
+sudo -E ./start-chapter-resources-podman.sh
+```
+
+For detailed instructions, see the [Podman Deployment Guide](docs/podman-deployment-guide.md).
+
 **Local Development:**
 
 1. Install Python 3.11+ and `uv`:
@@ -74,6 +98,8 @@ If you use ADEPT in your research, please cite:
 - [Tutorial: Setup, Tool Development, Example Workflows](docs/agentic-framework-tutorial.md)
 - [Tool User Guide](docs/agentic-framework-tool-user-guide.md)
 - [Sample User Queries](docs/agentic-framework-user-queries.md)
+- [Podman Deployment Guide](docs/podman-deployment-guide.md) - Alternative to Docker
+- [Podman Test Procedures](docs/test-procedures-podman.md) - Testing with Podman
 - [Licenses](docs/agentic-framework-licenses.md)
 - [Helm/Kubernetes Deployment Guide](infra/helm/README.md)
 

@@ -1,0 +1,73 @@
+# Podman-specific overrides for ADEPT Framework - Chapter 3
+# This file is automatically included by start-chapter-resources-podman.sh
+#
+# KEY DIFFERENCES FROM DOCKER:
+# - Removes platform specifications (Podman handles multiarch differently)
+# - Adds SELinux labels for volume mounts (:Z suffix)
+# - Disables SELinux isolation for compatibility
+# - REQUIRES ROOTFUL PODMAN for sandbox_mcp_server
+# - Podman socket path different from Docker
+version: '3.8'
+
+services:
+  mcp_server:
+    # Remove platform specification - Podman auto-detects architecture
+    platform: null
+    # Podman-specific: disable SELinux labels if causing issues
+    security_opt:
+      - label=disable
+    volumes:
+      # Add :Z suffix for SELinux private volume labeling
+      # :Z = private unshared label (exclusive to this container)
+      - ./data:/app/data:Z
+      # :z = shared label (can be shared across containers)
+      - shared_uploads:/app/data/uploaded_files:z
+
+  streamlit_app:
+    # Remove platform specification
+    platform: null
+    security_opt:
+      - label=disable
+    volumes:
+      - ./data:/app/data:Z
+      - shared_uploads:/app/data/uploaded_files:z
+
+  hpc_mcp_server:
+    # Remove platform specification
+    platform: null
+    security_opt:
+      - label=disable
+    volumes:
+      # BLAST databases need SELinux context
+      - ./blast_databases:/blast_databases:Z
+      # Shared uploads with :z for cross-container sharing
+      - shared_uploads:/app/data/uploaded_files:z
+      # Data directory for HPC server
+      - ./data:/app/data:Z
+
+  sandbox_mcp_server:
+    # Remove platform specification
+    platform: null
+    # CRITICAL: privileged mode required for nsjail
+    # This works with rootful Podman (run script with sudo)
+    privileged: true
+    security_opt:
+      - label=disable
+      - apparmor=unconfined
+    volumes:
+      - ./data:/app/data:Z
+      - shared_uploads:/app/data/uploaded_files:z
+      # PODMAN-SPECIFIC: Use Podman socket path instead of Docker
+      # For rootful Podman, socket is at /run/podman/podman.sock
+      - /run/podman/podman.sock:/var/run/docker.sock:Z
+    environment:
+      # Override Docker-specific settings
+      - PODMAN_MODE=rootful
+      # Note: llm-sandbox may need additional configuration to work with Podman
+      # If issues occur, consider using Docker for Chapter 3
+
+# Volume definitions remain the same
+# Podman handles volumes identically to Docker
+
+# Network definitions remain the same
+# Podman's bridge driver is compatible with Docker

@@ -1,0 +1,54 @@
+# Podman-specific overrides for ADEPT Framework - Chapter 0
+# This file is automatically included by start-chapter-resources-podman.sh
+#
+# KEY DIFFERENCES FROM DOCKER:
+# - Removes platform specifications (Podman handles multiarch differently)
+# - Adds SELinux labels for volume mounts (:Z suffix)
+# - Disables SELinux isolation for compatibility
+# - Fully rootless compatible
+version: '3.8'
+
+services:
+  ollama:
+    # Remove platform specification - Podman auto-detects architecture
+    platform: null
+    # Podman-specific: disable SELinux labels if causing issues
+    security_opt:
+      - label=disable
+    volumes:
+      # SELinux context label for private volume access
+      - ollama_data:/root/.ollama:Z
+
+  mcp_server:
+    # Remove platform specification
+    platform: null
+    security_opt:
+      - label=disable
+    volumes:
+      # Add :Z suffix for SELinux private volume labeling
+      - ./data:/app/data:Z
+      - shared_uploads:/app/data/uploaded_files:z
+    # Podman networking note: Service names work the same as Docker
+
+  streamlit_app:
+    platform: null
+    security_opt:
+      - label=disable
+    volumes:
+      - shared_uploads:/app/data/uploaded_files:z
+
+  jupyterlab:
+    platform: null
+    security_opt:
+      - label=disable
+    volumes:
+      # SELinux context for bind mounts
+      - ./data:/home/jovyan/work/data:Z
+      - ./notebooks:/home/jovyan/work/notebooks:Z
+      - shared_uploads:/home/jovyan/work/data/uploaded_files:z
+
+# Volume definitions remain the same
+# Podman handles volumes identically to Docker
+
+# Network definitions remain the same
+# Podman's bridge driver is compatible with Docker

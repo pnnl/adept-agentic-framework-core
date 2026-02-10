@@ -192,6 +192,26 @@ This setup launches two distinct services for OpenWebUI: the `openwebui_backend`
         *   Click "Add a new tool" and enter the URL for the MCP tool proxy: `http://host.docker.internal:8084`.
         *   Now, when you chat with any model in OpenWebUI, it will have access to all the tools from your MCP servers.
 
+### Alternative: Running with Podman
+
+**Podman** provides a Docker-compatible container runtime without requiring a daemon. This chapter supports Podman deployment.
+
+**Quick Start:**
+```bash
+# From this chapter directory
+./start-chapter-resources-podman.sh
+```
+
+**Requirements:**
+- Podman 4.0+
+- podman-compose: `pip install podman-compose`
+
+**Compatibility:**
+- ✅ Chapters 0-2: Full rootless Podman support
+- ⚠️ Chapter 3: Requires rootful Podman (`sudo -E ./start-chapter-resources-podman.sh`)
+
+For detailed Podman setup, troubleshooting, and feature comparison, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
+
 ### Local Development (Alternative)
 
 You can also run the components locally, but you'll need to manage dependencies and separate processes yourself.

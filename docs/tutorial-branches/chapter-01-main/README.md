@@ -120,6 +120,42 @@ The recommended way to build and run the application is using Docker Compose, wh
         ```bash
         docker compose logs -f
         ```
+
+### Alternative: Running with Podman
+
+Podman provides a Docker-compatible interface without requiring a daemon. This chapter fully supports rootless Podman.
+
+1.  **Prerequisites:**
+    *   Podman 4.0+ installed
+    *   podman-compose: `pip install podman-compose`
+    *   Python 3.11+ (same as Docker)
+
+2.  **Configuration:**
+    *   Same `.env` configuration as Docker (see above)
+
+3.  **Run with Podman:**
+    ```bash
+    # From chapter directory
+    ./start-chapter-resources-podman.sh
+    ```
+
+    The script will:
+    - Check for Podman and podman-compose
+    - Automatically include Podman-specific overlays
+    - Build images and start containers
+    - Handle clean shutdown with Ctrl+C
+
+4.  **Access:**
+    *   Same endpoints as Docker:
+        - Streamlit: http://localhost:8501
+        - MCP Server: http://localhost:8080
+
+**Compatibility:**
+- ✅ Chapter 1: Full rootless Podman support
+- ✅ Chapter 0-2: Full rootless Podman support
+- ⚠️ Chapter 3: Requires rootful Podman (use `sudo -E`)
+
+For detailed Podman setup and troubleshooting, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
     *   To stop the containers:
         ```bash
         docker compose down

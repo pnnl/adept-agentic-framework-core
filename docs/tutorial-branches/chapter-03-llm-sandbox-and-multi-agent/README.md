@@ -143,6 +143,35 @@ The `docker-compose.yml` in the project root defines the services, their shared 
         docker compose down
         ```
 
+### Alternative: Running with Podman
+
+**Podman** provides a Docker-compatible container runtime without requiring a daemon. Chapter 3 supports Podman but requires **rootful mode** due to sandbox security requirements.
+
+**Quick Start:**
+```bash
+# Chapter 3 REQUIRES rootful Podman (sudo)
+sudo -E ./start-chapter-resources-podman.sh
+```
+
+**Requirements:**
+- Podman 4.0+
+- podman-compose: `pip install podman-compose`
+- **Root access** (sudo) for sandbox features
+
+**⚠️ Security Note:**
+Chapter 3's sandbox server uses `nsjail` which requires privileged container mode. This must run with rootful Podman (sudo). Only use in trusted development environments.
+
+**Compatibility:**
+- ✅ Chapters 0-2: Full rootless Podman support
+- ⚠️ Chapter 3: Requires rootful Podman (`sudo -E`)
+
+**Alternative:** If uncomfortable with rootful mode, use Docker for Chapter 3:
+```bash
+./start-chapter-resources.sh
+```
+
+For detailed Podman setup, security implications, and troubleshooting, see the [Podman Deployment Guide](../../../docs/podman-deployment-guide.md).
+
 ### Local Development (Alternative)
 
 You can also run the components locally, but you'll need to manage dependencies and separate processes yourself.
