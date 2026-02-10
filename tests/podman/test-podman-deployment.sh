@@ -24,8 +24,24 @@ declare -a TEST_RESULTS
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Error: This test suite requires sudo${NC}"
-    echo "Run with: sudo ./test-podman-deployment.sh [chapter]"
+    echo "Run with: sudo -E ./test-podman-deployment.sh [chapter]"
+    echo "The -E flag preserves PATH to find podman-compose"
     exit 1
+fi
+
+# Detect podman-compose location
+# When running with sudo, we need to find podman-compose from the original user's PATH
+PODMAN_COMPOSE_CMD=""
+if command -v podman-compose &> /dev/null; then
+    PODMAN_COMPOSE_CMD="podman-compose"
+elif [ -n "$SUDO_USER" ]; then
+    # Try common user installation locations
+    for path in "/home/$SUDO_USER/.local/bin/podman-compose" "/usr/local/bin/podman-compose" "/usr/bin/podman-compose"; do
+        if [ -x "$path" ]; then
+            PODMAN_COMPOSE_CMD="$path"
+            break
+        fi
+    done
 fi
 
 # Logging
@@ -110,7 +126,13 @@ test_prerequisites() {
     print_section "Prerequisites Check"
 
     run_test "Podman installed" "command -v podman"
-    run_test "Podman-compose installed" "command -v podman-compose"
+
+    if [ -n "$PODMAN_COMPOSE_CMD" ]; then
+        run_test "Podman-compose installed" "[ -x '$PODMAN_COMPOSE_CMD' ]"
+    else
+        run_test "Podman-compose installed" "false"
+    fi
+
     run_test "Python 3.9+ available" "python3 --version | grep -E 'Python 3\.(9|1[0-9])'"
     run_test "Podman service accessible" "podman ps"
     run_test "Registry configured" "grep -q 'docker.io' /root/.config/containers/registries.conf"
@@ -150,7 +172,11 @@ test_chapter() {
     run_test "start script is executable" "[ -x 'start-chapter-resources-podman.sh' ]"
 
     # Check overlay file syntax
-    run_test "Podman overlay has valid YAML" "podman-compose -f docker-compose.yaml -f docker-compose.podman.yaml config > /dev/null"
+    if [ -n "$PODMAN_COMPOSE_CMD" ]; then
+        run_test "Podman overlay has valid YAML" "$PODMAN_COMPOSE_CMD -f docker-compose.yaml -f docker-compose.podman.yaml config > /dev/null"
+    else
+        skip_test "Podman overlay has valid YAML" "podman-compose not found"
+    fi
 
     # Verify no SELinux labels in overlay
     if grep -E ':\s*[Zz]\s*$' docker-compose.podman.yaml > /dev/null 2>&1; then

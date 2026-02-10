@@ -26,18 +26,22 @@ This document describes the comprehensive test suite for validating Podman deplo
 
 **Usage:**
 ```bash
+# IMPORTANT: Use sudo -E to preserve PATH (finds podman-compose in ~/.local/bin)
+
 # Test all chapters
-sudo ./tests/podman/test-podman-deployment.sh
+sudo -E ./tests/podman/test-podman-deployment.sh
 
 # Test specific chapter
-sudo ./tests/podman/test-podman-deployment.sh 0  # Chapter 0
-sudo ./tests/podman/test-podman-deployment.sh 1  # Chapter 1
-sudo ./tests/podman/test-podman-deployment.sh 2  # Chapter 2
-sudo ./tests/podman/test-podman-deployment.sh 3  # Chapter 3
+sudo -E ./tests/podman/test-podman-deployment.sh 0  # Chapter 0
+sudo -E ./tests/podman/test-podman-deployment.sh 1  # Chapter 1
+sudo -E ./tests/podman/test-podman-deployment.sh 2  # Chapter 2
+sudo -E ./tests/podman/test-podman-deployment.sh 3  # Chapter 3
 
 # Show help
-sudo ./tests/podman/test-podman-deployment.sh --help
+./tests/podman/test-podman-deployment.sh --help  # No sudo needed for help
 ```
+
+**Note:** The `-E` flag preserves your environment (including PATH) so the test script can find `podman-compose` installed in `~/.local/bin`.
 
 **Output:**
 - Color-coded results (green=pass, red=fail, yellow=skip)
@@ -184,13 +188,13 @@ Not an error - just informational.
 
 ```bash
 # Step 1: Run prerequisites
-sudo ./tests/podman/test-podman-deployment.sh 0  # Test Chapter 0 only
+sudo -E ./tests/podman/test-podman-deployment.sh 0  # Test Chapter 0 only
 
 # Step 2: If fails, review errors
 cat test-results-*.log | grep "FAIL:"
 
 # Step 3: Fix issues and retest
-sudo ./tests/podman/test-podman-deployment.sh 0
+sudo -E ./tests/podman/test-podman-deployment.sh 0
 ```
 
 ### 2. Rapid Development Testing
@@ -203,14 +207,14 @@ vim docs/tutorial-branches/chapter-00-introduction/docker-compose.podman.yaml
 ./tests/podman/quick-test.sh 0
 
 # If pass, run full suite
-sudo ./tests/podman/test-podman-deployment.sh 0
+sudo -E ./tests/podman/test-podman-deployment.sh 0
 ```
 
 ### 3. Multi-Chapter Testing
 
 ```bash
 # Test all chapters at once
-sudo ./tests/podman/test-podman-deployment.sh all
+sudo -E ./tests/podman/test-podman-deployment.sh all
 
 # Review summary
 # Deploy next chapter if previous passed
@@ -289,7 +293,7 @@ jobs:
         run: ./bootstrap-podman-env.sh
 
       - name: Test Chapter 0
-        run: sudo ./tests/podman/test-podman-deployment.sh 0
+        run: sudo -E ./tests/podman/test-podman-deployment.sh 0
 
       - name: Upload test logs
         if: always()
@@ -381,7 +385,7 @@ sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
 1. **Run tests after configuration changes**
    ```bash
-   sudo ./tests/podman/test-podman-deployment.sh <chapter>
+   sudo -E ./tests/podman/test-podman-deployment.sh <chapter>
    ```
 
 2. **Use quick test for rapid iteration**
@@ -407,7 +411,7 @@ sudo env "PATH=$PATH" ./start-chapter-resources-podman.sh
 
 6. **Run full suite before commits**
    ```bash
-   sudo ./tests/podman/test-podman-deployment.sh all
+   sudo -E ./tests/podman/test-podman-deployment.sh all
    ```
 
 ---

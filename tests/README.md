@@ -21,7 +21,8 @@ Tests for validating Podman deployments across all chapters (0-3).
 
 **Run comprehensive test suite:**
 ```bash
-sudo ./tests/podman/test-podman-deployment.sh [0|1|2|3|all]
+# Use sudo -E to preserve PATH (finds podman-compose in ~/.local/bin)
+sudo -E ./tests/podman/test-podman-deployment.sh [0|1|2|3|all]
 ```
 
 **Run quick smoke test:**

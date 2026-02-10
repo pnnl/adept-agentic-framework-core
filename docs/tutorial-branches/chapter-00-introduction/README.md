@@ -243,8 +243,8 @@ For detailed Podman setup, troubleshooting, and feature comparison, see the [Pod
 
 For comprehensive testing of this chapter (run from project root):
 ```bash
-# Run full test suite
-sudo ./tests/podman/test-podman-deployment.sh 0
+# Run full test suite (use -E to preserve PATH)
+sudo -E ./tests/podman/test-podman-deployment.sh 0
 
 # Quick smoke test
 ./tests/podman/quick-test.sh 0
