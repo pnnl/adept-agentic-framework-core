@@ -103,5 +103,6 @@ nbproject/ # NetBeans
 .ruff_cache*
 ./data/*
 data/*
+!data/sample_proteomics.csv
 data-old
 data-old/*

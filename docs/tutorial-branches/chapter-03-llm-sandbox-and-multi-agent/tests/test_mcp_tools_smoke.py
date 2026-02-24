@@ -670,6 +670,236 @@ class TestWebSearchToolSmoke:
         assert len(result) > 0
 
 
+class TestSqlQueryToolSmoke:
+    """Smoke tests for SQL knowledge-base tools (ingest_data, execute_sql,
+    get_sql_schema, query_csv_rag, list_files).
+
+    Two tiers:
+    1. Unit tests (no Docker / network required) – verify SELECT guardrail,
+       row cap, Pydantic schemas, and LangChain wrapper metadata.
+    2. Integration tests (``@pytest.mark.slow``, require Docker) – make real
+       MCP calls through the running server.
+    """
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _register_kb_tools(self) -> dict:
+        """Register knowledge_base_tool against a mock FastMCP and return the
+        dict of ``{function_name: coroutine}``."""
+        from unittest.mock import MagicMock
+        from agentic_framework_pkg.mcp_server.tools import knowledge_base_tool
+
+        registered: dict = {}
+        mock_mcp = MagicMock()
+
+        def capture_tool(**kwargs):
+            def decorator(fn):
+                registered[fn.__name__] = fn
+                return fn
+
+            return decorator
+
+        mock_mcp.tool = capture_tool
+        knowledge_base_tool.register_tools(mock_mcp)
+        return registered
+
+    def _mock_ctx(self):
+        from unittest.mock import MagicMock, AsyncMock
+
+        ctx = MagicMock()
+        ctx.session_id = "test_session"
+        ctx.info = AsyncMock()
+        ctx.error = AsyncMock()
+        ctx.warning = AsyncMock()
+        return ctx
+
+    # ------------------------------------------------------------------
+    # Unit tests – no external services required
+    # ------------------------------------------------------------------
+
+    def test_sql_query_input_schema_accepts_valid_select(self):
+        """SQLQueryInput should accept a well-formed SELECT statement."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            SQLQueryInput,
+        )
+
+        schema = SQLQueryInput(query="SELECT * FROM proteins WHERE organism='human'")
+        assert "SELECT" in schema.query
+
+    def test_ingest_data_input_schema_accepts_valid_input(self):
+        """IngestDataInput should accept a file path and logical table name."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            IngestDataInput,
+        )
+
+        schema = IngestDataInput(file_path="/app/data/test.csv", table_name="proteins")
+        assert schema.file_path == "/app/data/test.csv"
+        assert schema.table_name == "proteins"
+
+    def test_sql_wrapper_description_mentions_get_sql_schema(self):
+        """ExecuteSQL wrapper description must tell the LLM to call GetSQLSchema first."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            get_mcp_sql_tool_langchain,
+        )
+
+        tool = get_mcp_sql_tool_langchain(mcp_session_id="test")
+        assert (
+            "GetSQLSchema" in tool.description
+            or "get_sql_schema" in tool.description.lower()
+        )
+
+    def test_sql_wrapper_description_mentions_select_only(self):
+        """ExecuteSQL wrapper description must mention the SELECT-only restriction."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            get_mcp_sql_tool_langchain,
+        )
+
+        tool = get_mcp_sql_tool_langchain(mcp_session_id="test")
+        assert "SELECT" in tool.description or "select" in tool.description.lower()
+
+    def test_ingest_data_wrapper_description_mentions_rag_and_sql(self):
+        """IngestDataToSQL wrapper description must mention both SQL and semantic/RAG."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            get_mcp_ingest_data_tool_langchain,
+        )
+
+        tool = get_mcp_ingest_data_tool_langchain(mcp_session_id="test")
+        desc_lower = tool.description.lower()
+        assert "sql" in desc_lower
+        assert "rag" in desc_lower or "semantic" in desc_lower
+
+    @pytest.mark.asyncio
+    async def test_execute_sql_rejects_drop_table(self):
+        """execute_sql must reject DDL (DROP TABLE) with a structured error dict."""
+        registered = self._register_kb_tools()
+        tool_fn = registered.get("execute_sql")
+        assert tool_fn is not None, "execute_sql was not registered"
+
+        result = await tool_fn(ctx=self._mock_ctx(), query="DROP TABLE proteins")
+
+        assert "error" in result
+        assert "select" in result["error"].lower() or "SELECT" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_sql_rejects_insert(self):
+        """execute_sql must reject INSERT statements."""
+        tool_fn = self._register_kb_tools()["execute_sql"]
+        result = await tool_fn(
+            ctx=self._mock_ctx(),
+            query="INSERT INTO proteins VALUES ('P1', 'TP53')",
+        )
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_execute_sql_rejects_update(self):
+        """execute_sql must reject UPDATE statements."""
+        tool_fn = self._register_kb_tools()["execute_sql"]
+        result = await tool_fn(
+            ctx=self._mock_ctx(),
+            query="UPDATE proteins SET expression_level=5",
+        )
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_execute_sql_caps_result_rows(self, monkeypatch):
+        """execute_sql must truncate result sets larger than SQL_MAX_ROWS."""
+        from unittest.mock import AsyncMock, patch
+
+        big_result = [{"id": i} for i in range(600)]
+        tool_fn = self._register_kb_tools()["execute_sql"]
+        monkeypatch.setenv("SQL_MAX_ROWS", "10")
+
+        with patch(
+            "agentic_framework_pkg.mcp_server.tools.knowledge_base_tool.execute_async_sql_query",
+            new=AsyncMock(return_value=big_result),
+        ):
+            result = await tool_fn(ctx=self._mock_ctx(), query="SELECT * FROM proteins")
+
+        assert result["status"] == "success"
+        assert len(result["result"]) == 10
+
+    @pytest.mark.asyncio
+    async def test_execute_sql_returns_rows_for_valid_select(self):
+        """execute_sql returns rows as a list of dicts for a valid SELECT."""
+        from unittest.mock import AsyncMock, patch
+
+        mock_rows = [{"protein_id": "P1", "organism": "human"}]
+        tool_fn = self._register_kb_tools()["execute_sql"]
+
+        with patch(
+            "agentic_framework_pkg.mcp_server.tools.knowledge_base_tool.execute_async_sql_query",
+            new=AsyncMock(return_value=mock_rows),
+        ):
+            result = await tool_fn(ctx=self._mock_ctx(), query="SELECT * FROM proteins")
+
+        assert result["status"] == "success"
+        assert result["result"] == mock_rows
+
+    @pytest.mark.asyncio
+    async def test_get_sql_schema_returns_schema_string(self):
+        """get_sql_schema passes through the string returned by get_async_table_info."""
+        from unittest.mock import AsyncMock, patch
+
+        schema_str = "Table: proteins (protein_id TEXT, organism TEXT)"
+        tool_fn = self._register_kb_tools()["get_sql_schema"]
+
+        with patch(
+            "agentic_framework_pkg.mcp_server.tools.knowledge_base_tool.get_async_table_info",
+            new=AsyncMock(return_value=schema_str),
+        ):
+            result = await tool_fn(ctx=self._mock_ctx())
+
+        assert result["schemas"] == schema_str
+
+    # ------------------------------------------------------------------
+    # Integration tests – require Docker containers + shared volume
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_sql_ingest_and_count(self, main_mcp_server_available):
+        """Integration: ingest sample CSV then count rows via SQL."""
+        import os
+        from fastmcp import Client as MCPClient
+
+        sample_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), "..", "data", "sample_proteomics.csv"
+            )
+        )
+        async with MCPClient(MAIN_MCP_SERVER_URL) as client:
+            ingest = await client.call_tool(
+                "ingest_data",
+                {"file_path": sample_path, "table_name": "sample_proteomics"},
+            )
+            assert ingest
+
+            schema = await client.call_tool("get_sql_schema", {})
+            assert schema
+
+            count = await client.call_tool(
+                "execute_sql",
+                {"query": "SELECT COUNT(*) as cnt FROM sample_proteomics"},
+            )
+            assert count
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_sql_rejects_drop_in_integration(self, main_mcp_server_available):
+        """Integration: server-side guardrail rejects DROP TABLE."""
+        from fastmcp import Client as MCPClient
+
+        async with MCPClient(MAIN_MCP_SERVER_URL) as client:
+            result = await client.call_tool(
+                "execute_sql",
+                {"query": "DROP TABLE sample_proteomics"},
+            )
+        result_str = str(result).lower()
+        assert "error" in result_str or "select" in result_str
+
+
 # Recommended test queries for manual testing in Chapter 03:
 """
 GOOD TEST QUERIES FOR CHAPTER 03 MULTI-AGENT SYSTEM:

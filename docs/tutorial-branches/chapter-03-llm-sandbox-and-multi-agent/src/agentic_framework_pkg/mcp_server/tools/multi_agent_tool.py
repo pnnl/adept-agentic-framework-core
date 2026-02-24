@@ -40,6 +40,12 @@ from ...scientific_workflow.mcp_langchain_tools import (
     get_mcp_test_hpc_connection_tool_langchain,
     get_mcp_submit_slurm_job_tool_langchain,
     get_mcp_check_slurm_job_status_tool_langchain,
+    # SQL / Knowledge-base tools
+    get_mcp_ingest_data_tool_langchain,
+    get_mcp_sql_schema_tool_langchain,
+    get_mcp_sql_tool_langchain,
+    get_mcp_rag_query_tool_langchain,
+    get_mcp_list_ingested_files_tool_langchain,
 )
 
 logger = get_logger(__name__)
@@ -76,6 +82,12 @@ def get_all_mcp_tools(session_id: str) -> List[BaseTool]:
         get_mcp_test_hpc_connection_tool_langchain,
         get_mcp_submit_slurm_job_tool_langchain,
         get_mcp_check_slurm_job_status_tool_langchain,
+        # SQL / Knowledge-base tools
+        get_mcp_ingest_data_tool_langchain,
+        get_mcp_sql_schema_tool_langchain,
+        get_mcp_sql_tool_langchain,
+        get_mcp_rag_query_tool_langchain,
+        get_mcp_list_ingested_files_tool_langchain,
     ]
     return [factory(mcp_session_id=session_id) for factory in tool_factories]
 

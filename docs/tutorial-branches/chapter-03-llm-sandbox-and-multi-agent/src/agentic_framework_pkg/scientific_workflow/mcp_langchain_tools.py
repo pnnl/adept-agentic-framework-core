@@ -896,4 +896,132 @@ def get_mcp_list_active_multi_agent_sessions_tool_langchain(
     )
 
 
+# ---------------------------------------------------------------------------
+# SQL / Knowledge-Base Tools (Chapter 03 addition – ported from Chapter 00)
+# ---------------------------------------------------------------------------
+
+
+class IngestDataInput(BaseModel):
+    file_path: str = Field(
+        description=(
+            "Absolute server-accessible path to the CSV, TSV, XLS, or XLSX file to "
+            "ingest.  The file must be on the shared upload volume."
+        )
+    )
+    table_name: str = Field(
+        description=(
+            "Logical name for the SQL table (e.g. 'proteins', 'samples').  "
+            "Non-alphanumeric characters are stripped automatically."
+        )
+    )
+    mcp_session_id: Optional[str] = Field(None, description="MCP session ID.")
+
+
+class SQLQueryInput(BaseModel):
+    query: str = Field(
+        description=(
+            "A valid SQLite SELECT statement.  Always call GetSQLSchema first to "
+            "discover available table and column names.  Only SELECT is permitted — "
+            "INSERT, UPDATE, DELETE, and DDL statements are rejected."
+        )
+    )
+    mcp_session_id: Optional[str] = Field(None, description="MCP session ID.")
+
+
+class RAGQueryInput(BaseModel):
+    query: str = Field(
+        description=(
+            "A natural language question to search the ingested CSV/table data using "
+            "semantic similarity.  Good for exploratory content questions.  For "
+            "precise numeric or aggregation queries, use ExecuteSQL instead."
+        )
+    )
+    mcp_session_id: Optional[str] = Field(None, description="MCP session ID.")
+
+
+class GetSQLSchemaInput(BaseModel):
+    mcp_session_id: Optional[str] = Field(None, description="MCP session ID.")
+
+
+class ListIngestedFilesInput(BaseModel):
+    mcp_session_id: Optional[str] = Field(None, description="MCP session ID.")
+
+
+def get_mcp_ingest_data_tool_langchain(mcp_session_id: Optional[str] = None):
+    return MCPToolWrapper(
+        name="IngestDataToSQL",
+        mcp_client_url=DEFAULT_MCP_SERVER_URL_FOR_LANGCHAIN,
+        actual_tool_name="ingest_data",
+        description=(
+            "Loads a CSV, TSV, XLS, or XLSX file into a SQLite database table AND "
+            "indexes it in ChromaDB for semantic RAG queries.  Call this before using "
+            "ExecuteSQL or QueryCSVDataWithRAG.  Returns row count and column list."
+        ),
+        args_schema=IngestDataInput,
+        mcp_session_id=mcp_session_id,
+    )
+
+
+def get_mcp_sql_schema_tool_langchain(mcp_session_id: Optional[str] = None):
+    return MCPToolWrapper(
+        name="GetSQLSchema",
+        mcp_client_url=DEFAULT_MCP_SERVER_URL_FOR_LANGCHAIN,
+        actual_tool_name="get_sql_schema",
+        description=(
+            "Returns the schema (table names and column names/types) for all tables "
+            "in the SQLite knowledge-base.  Always call this before writing a SQL "
+            "query so you know the exact column names."
+        ),
+        args_schema=GetSQLSchemaInput,
+        mcp_session_id=mcp_session_id,
+    )
+
+
+def get_mcp_sql_tool_langchain(mcp_session_id: Optional[str] = None):
+    return MCPToolWrapper(
+        name="ExecuteSQL",
+        mcp_client_url=DEFAULT_MCP_SERVER_URL_FOR_LANGCHAIN,
+        actual_tool_name="execute_sql",
+        description=(
+            "Executes a read-only SQL SELECT query against the SQLite knowledge-base "
+            "database.  Only SELECT statements are permitted — INSERT, UPDATE, DELETE, "
+            "and DDL statements are rejected before execution.  Always call "
+            "GetSQLSchema first to discover table and column names.  Returns up to "
+            "500 rows as a list of dicts (configurable via SQL_MAX_ROWS env var)."
+        ),
+        args_schema=SQLQueryInput,
+        mcp_session_id=mcp_session_id,
+    )
+
+
+def get_mcp_rag_query_tool_langchain(mcp_session_id: Optional[str] = None):
+    return MCPToolWrapper(
+        name="QueryCSVDataWithRAG",
+        mcp_client_url=DEFAULT_MCP_SERVER_URL_FOR_LANGCHAIN,
+        actual_tool_name="query_csv_rag",
+        description=(
+            "Performs a semantic similarity search over previously ingested tabular "
+            "data (CSV/Excel files loaded via IngestDataToSQL).  Use this for "
+            "open-ended, exploratory questions about data content.  For precise "
+            "numeric queries use ExecuteSQL instead."
+        ),
+        args_schema=RAGQueryInput,
+        mcp_session_id=mcp_session_id,
+    )
+
+
+def get_mcp_list_ingested_files_tool_langchain(mcp_session_id: Optional[str] = None):
+    return MCPToolWrapper(
+        name="ListIngestedFiles",
+        mcp_client_url=DEFAULT_MCP_SERVER_URL_FOR_LANGCHAIN,
+        actual_tool_name="list_files",
+        description=(
+            "Lists all files that have been ingested into the SQL/RAG knowledge base "
+            "via IngestDataToSQL."
+        ),
+        args_schema=ListIngestedFilesInput,
+        mcp_session_id=mcp_session_id,
+    )
+
+
 # Add more Langchain tool wrappers for other MCP tools as needed.

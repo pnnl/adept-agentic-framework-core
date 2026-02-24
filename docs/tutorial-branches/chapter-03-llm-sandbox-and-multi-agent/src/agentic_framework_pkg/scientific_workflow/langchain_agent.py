@@ -48,6 +48,12 @@ from .mcp_langchain_tools import (
     get_mcp_update_pending_plan_tool_langchain,  # Multi-agent tool
     get_mcp_terminate_multi_agent_session_tool_langchain,  # Multi-agent tool
     get_mcp_list_active_multi_agent_sessions_tool_langchain,  # Multi-agent tool
+    # SQL / Knowledge-base tools (Chapter 03 addition)
+    get_mcp_ingest_data_tool_langchain,
+    get_mcp_sql_schema_tool_langchain,
+    get_mcp_sql_tool_langchain,
+    get_mcp_rag_query_tool_langchain,
+    get_mcp_list_ingested_files_tool_langchain,
 )
 
 # LangGraph imports
@@ -182,6 +188,12 @@ class ScientificWorkflowAgent:
             get_mcp_list_active_multi_agent_sessions_tool_langchain(
                 mcp_session_id=agent_session_id
             ),  # Multi-agent tool
+            # SQL / Knowledge-base tools
+            get_mcp_ingest_data_tool_langchain(mcp_session_id=agent_session_id),
+            get_mcp_sql_schema_tool_langchain(mcp_session_id=agent_session_id),
+            get_mcp_sql_tool_langchain(mcp_session_id=agent_session_id),
+            get_mcp_rag_query_tool_langchain(mcp_session_id=agent_session_id),
+            get_mcp_list_ingested_files_tool_langchain(mcp_session_id=agent_session_id),
             # Add more wrapped MCP tools here
         ]
 
@@ -206,6 +218,7 @@ class ScientificWorkflowAgent:
             "run a BLAST search pipeline on a dedicated HPC server (RunNextflowBlastPipelineHPC) for potentially larger or custom database searches; "  # semicolon added
             "and transcribe and summarize videos (RunVideoTranscriptionPipelineHPC) using a video URL or an absolute server-accessible file path (e.g., /app/data/uploaded_files/my_video.mp4). This tool also indexes the transcript, making it queryable via its returned file_id using QueryProcessedDocumentData. "
             "retrieve information from uploaded documents (CSVs, PDFs, DOCX, images, TXT, TEX) once they are processed and have a file_id (QueryProcessedDocumentData), list previously uploaded and processed files (ListUploadedFiles), "
+            "work with structured tabular data (CSV, TSV, Excel) using a SQL knowledge base: use IngestDataToSQL to load a file, then GetSQLSchema to inspect columns, then ExecuteSQL for precise counting/aggregation/filtering (SELECT only), or QueryCSVDataWithRAG for open-ended semantic questions about table content; use ListIngestedFiles to see what has been ingested. "
             "execute arbitrary code in a secure sandbox (ExecuteCode) for languages like python, javascript, or shell. For Python, you can generate plots by setting the 'generate_plot' parameter to True. This can create static images (e.g., with matplotlib) or interactive HTML plots (e.g., with plotly). For Python plotting, ensure you explicitly create a figure object (e.g., 'fig, ax = plt.subplots()') and avoid calling 'plt.show()'. The figure object should be the last expression in your code block for it to be captured. Streamlit renders these figures using 'st.pyplot(fig)'. You can also specify a custom Docker image with the 'sandbox_image' parameter; "
             "scan public GitHub repositories for secrets (ScanGithubRepositoryForSecrets); "
             "and connect to remote HPC clusters via SSH: test SSH connections (TestHPCConnection), submit Slurm batch jobs (SubmitSlurmJob), and check job status (CheckSlurmJobStatus). These HPC SSH tools connect to REMOTE clusters via SSH, not the local Nextflow container. "
