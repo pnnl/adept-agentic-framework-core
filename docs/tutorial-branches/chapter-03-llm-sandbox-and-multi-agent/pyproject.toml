@@ -49,6 +49,7 @@ dependencies = [
     "beautifulsoup4", # For robust HTML parsing
     "lxml", # High-performance parser for BeautifulSoup
     "httpx", # For making robust HTTP requests to APIs
+    "fabric>=3.0.0", # SSH remote execution for HPC cluster integration
 ]
 
 [project.optional-dependencies]
@@ -83,3 +84,10 @@ target-version = "py311" # Align with project's requires-python
 [tool.ruff.lint]
 select = ["E"] #, "F", "I", "W", "C", "N", "D", "B", "T", "S", "A", "G"] # A common set of rules
 ignore = ["E501"] # Ignore line too long
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (require Docker containers + internet access, run with -m slow)",
+]

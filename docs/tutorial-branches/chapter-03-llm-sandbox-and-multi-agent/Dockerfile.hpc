@@ -15,7 +15,7 @@ WORKDIR ${HOME}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies: curl, unzip, procps, build-essential (for some Python packages)
-# Includes GPG fix for apt-get
+# Includes GPG fix for apt-get and openjdk-21-jre-headless for Nextflow
 RUN apt-get update && \
     apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg && \
     # GPG fix steps (simplified from other Dockerfiles, assuming base image is relatively up-to-date)
@@ -26,6 +26,7 @@ RUN apt-get update && \
     procps \
     build-essential \
     ffmpeg \
+    openjdk-21-jre-headless \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -89,7 +90,10 @@ ENV NXF_VERBOSITY=3
 ENV UV_CACHE_DIR=/tmp/.uv_cache_appuser_runtime
 
 # Create and set permissions for UV_CACHE_DIR and ensure /app is owned by appuser
-RUN mkdir -p ${UV_CACHE_DIR} /app/data/uploaded_files && chown -R appuser:appgroup ${UV_CACHE_DIR}
+# Also create .ssh directory for HPC SSH key mounting
+RUN mkdir -p ${UV_CACHE_DIR} /app/data/uploaded_files /home/appuser/.ssh && \
+    chown -R appuser:appgroup ${UV_CACHE_DIR} /home/appuser/.ssh && \
+    chmod 700 /home/appuser/.ssh
 RUN chown -R appuser:appgroup ${HOME}
 
 # Switch to non-root user

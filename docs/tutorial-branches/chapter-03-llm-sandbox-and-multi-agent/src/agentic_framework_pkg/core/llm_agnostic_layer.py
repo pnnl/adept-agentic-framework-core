@@ -671,14 +671,28 @@ class LLMAgnosticClient:
 
             from langchain_openai import ChatOpenAI
 
-            return ChatOpenAI(
-                model=internal_llm_model,
-                api_key=internal_llm_api_key,
-                base_url=internal_llm_base_url,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                **kwargs,  # Allow override of other parameters
-            )
+            # O-series reasoning models only support temperature=1, so don't pass temperature parameter
+            if is_reasoning_model:
+                logger.info(
+                    f"Reasoning model detected ({internal_llm_model}). Not setting temperature (O-series models only support temperature=1 by default)."
+                )
+                return ChatOpenAI(
+                    model=internal_llm_model,
+                    api_key=internal_llm_api_key,
+                    base_url=internal_llm_base_url,
+                    max_tokens=max_tokens,
+                    # Don't pass temperature for O-series models
+                    **kwargs,  # Allow override of other parameters
+                )
+            else:
+                return ChatOpenAI(
+                    model=internal_llm_model,
+                    api_key=internal_llm_api_key,
+                    base_url=internal_llm_base_url,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    **kwargs,  # Allow override of other parameters
+                )
 
         # ============================================================================
         # Continue with existing provider logic (Azure, OpenAI, Ollama)

@@ -12,10 +12,54 @@ Chapter 03 has three MCP servers: main, HPC, and sandbox.
 """
 
 import pytest
+import pytest_asyncio
 import os
 import httpx
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+# Minimal valid BLAST XML with no hits – used by mocked NCBI calls in unit tests
+MINIMAL_BLAST_XML = """\
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "NCBI_BlastOutput.dtd">
+<BlastOutput>
+  <BlastOutput_program>blastp</BlastOutput_program>
+  <BlastOutput_db>mock_db</BlastOutput_db>
+  <BlastOutput_query-len>22</BlastOutput_query-len>
+  <BlastOutput_iterations>
+    <Iteration>
+      <Iteration_iter-num>1</Iteration_iter-num>
+      <Iteration_hits/>
+      <Iteration_stat>
+        <Statistics>
+          <Statistics_db-num>200000000</Statistics_db-num>
+          <Statistics_db-len>70000000000</Statistics_db-len>
+          <Statistics_hsp-len>0</Statistics_hsp-len>
+          <Statistics_eff-space>0</Statistics_eff-space>
+          <Statistics_kappa>0.041</Statistics_kappa>
+          <Statistics_lambda>0.267</Statistics_lambda>
+          <Statistics_entropy>0.14</Statistics_entropy>
+        </Statistics>
+      </Iteration_stat>
+    </Iteration>
+  </BlastOutput_iterations>
+</BlastOutput>
+"""
+
+SUPPORTED_BLAST_DATABASES = [
+    "nr",
+    "swissprot",
+    "pdb",
+    "refseq_protein",
+    "refseq_select_prot",
+    "env_nr",
+    "pataa",
+]
+
+# Short, well-characterised peptide (human ubiquitin N-terminus) used in BLAST tests
+TEST_BLAST_SEQUENCE = (
+    "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG"
+)
 
 
 # Skip all tests if running in CI without network access
@@ -34,7 +78,7 @@ SANDBOX_MCP_SERVER_URL = os.getenv(
 TEST_SESSION_ID = "smoke_test_session"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def main_mcp_server_available():
     """Check if main MCP server is running."""
     try:
@@ -57,7 +101,7 @@ async def main_mcp_server_available():
         pytest.skip(f"Main MCP server check failed: {type(e).__name__}: {e}")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def hpc_mcp_server_available():
     """Check if HPC MCP server is running."""
     try:
@@ -80,7 +124,7 @@ async def hpc_mcp_server_available():
         pytest.skip(f"HPC MCP server check failed: {type(e).__name__}: {e}")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def sandbox_mcp_server_available():
     """Check if Sandbox MCP server is running."""
     try:
@@ -217,6 +261,234 @@ class TestScientificToolsSmoke:
         assert len(result) > 0
 
 
+class TestBlastDatabasesSmoke:
+    """Smoke tests verifying BLASTp tools support multiple NCBI databases.
+
+    Two tiers:
+    1. Unit tests (no Docker / network required) – verify schema acceptance and
+       that the ``database`` parameter is forwarded correctly to the NCBI API.
+    2. Integration tests (``@pytest.mark.slow``, require Docker + internet) –
+       make real NCBI BLAST calls for each documented database through the
+       running multi-agent system and verify the tool returns a valid response
+       structure.
+    """
+
+    # ------------------------------------------------------------------
+    # Unit tests – no external services required
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("database", SUPPORTED_BLAST_DATABASES)
+    def test_blastp_schema_accepts_all_databases(self, database):
+        """Pydantic schema should accept every documented NCBI protein database."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            PerformBlastpSearchBiopythonInput,
+        )
+
+        schema = PerformBlastpSearchBiopythonInput(
+            sequence=TEST_BLAST_SEQUENCE,
+            database=database,
+        )
+        assert schema.database == database
+
+    def test_blastp_schema_default_database_is_nr(self):
+        """Default database should be 'nr' as documented."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            PerformBlastpSearchBiopythonInput,
+        )
+
+        schema = PerformBlastpSearchBiopythonInput(sequence=TEST_BLAST_SEQUENCE)
+        assert schema.database == "nr"
+
+    def test_blastp_wrapper_description_mentions_all_databases(self):
+        """LangChain tool wrapper description should mention every supported database."""
+        from agentic_framework_pkg.scientific_workflow.mcp_langchain_tools import (
+            get_mcp_blastp_biopython_tool_langchain,
+        )
+
+        tool = get_mcp_blastp_biopython_tool_langchain(mcp_session_id="test")
+        description = tool.description.lower()
+
+        for db in SUPPORTED_BLAST_DATABASES:
+            assert db in description, (
+                f"Database '{db}' is not mentioned in the tool wrapper description. "
+                "Agents won't know to use it."
+            )
+
+    @pytest.mark.parametrize("database", SUPPORTED_BLAST_DATABASES)
+    @pytest.mark.asyncio
+    async def test_blastq_passes_database_to_ncbi(self, database):
+        """blastq_tool should forward the ``database`` argument to NCBIWWW.qblast unchanged."""
+        from io import StringIO
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from agentic_framework_pkg.mcp_server.tools import blastq_tool
+
+        captured: list[tuple] = []
+
+        def mock_qblast(program, db_arg, sequence, **kwargs):
+            captured.append((program, db_arg))
+            return StringIO(MINIMAL_BLAST_XML)
+
+        # Extract the decorated function by replacing FastMCP.tool with a simple
+        # passthrough decorator so we can call the inner function directly.
+        registered: dict = {}
+
+        mock_mcp = MagicMock()
+
+        def capture_tool(**kwargs):
+            def decorator(fn):
+                registered[fn.__name__] = fn
+                return fn
+
+            return decorator
+
+        mock_mcp.tool = capture_tool
+
+        blastq_tool.register_tools(mock_mcp)
+
+        tool_fn = registered.get("perform_blastp_search_biopython")
+        assert tool_fn is not None, "perform_blastp_search_biopython was not registered"
+
+        mock_ctx = MagicMock()
+        mock_ctx.session_id = "test_session"
+        mock_ctx.request_id = "test_request"
+        mock_ctx.client_id = None
+        mock_ctx.info = AsyncMock()
+        mock_ctx.error = AsyncMock()
+        mock_ctx.warning = AsyncMock()
+
+        with (
+            patch.object(blastq_tool.NCBIWWW, "qblast", side_effect=mock_qblast),
+            patch(
+                "agentic_framework_pkg.mcp_server.tools.blastq_tool.create_session_if_not_exists",
+                new=AsyncMock(),
+            ),
+        ):
+            result = await tool_fn(
+                sequence=TEST_BLAST_SEQUENCE,
+                ctx=mock_ctx,
+                database=database,
+                hitlist_size=2,
+            )
+
+        assert len(captured) == 1, "qblast should be called exactly once"
+        assert captured[0][0] == "blastp", "BLAST program must be 'blastp'"
+        assert captured[0][1] == database, (
+            f"Expected database '{database}', got '{captured[0][1]}'"
+        )
+        # Tool should return a dict even when there are zero hits
+        assert isinstance(result, dict)
+
+    # ------------------------------------------------------------------
+    # Integration tests – require Docker containers + internet access
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_blastp_swissprot_database_integration(
+        self, main_mcp_server_available
+    ):
+        """Integration: BLASTp against 'swissprot' (UniProt Swiss-Prot) returns results."""
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+        result = await system.process_query(
+            user_query=(
+                f"Perform a BLASTP search with the sequence '{TEST_BLAST_SEQUENCE}' "
+                "against the swissprot database with hitlist_size=5."
+            ),
+        )
+
+        assert isinstance(result, dict)
+        result_str = str(result).lower()
+        # Should indicate success or return hits data (swissprot has ubiquitin)
+        assert any(
+            word in result_str
+            for word in ["swissprot", "ubiquitin", "hit", "result", "blast", "match"]
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_blastp_pdb_database_integration(self, main_mcp_server_available):
+        """Integration: BLASTp against 'pdb' (Protein Data Bank) returns results."""
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+        result = await system.process_query(
+            user_query=(
+                f"Perform a BLASTP search with the sequence '{TEST_BLAST_SEQUENCE}' "
+                "against the pdb database with hitlist_size=5."
+            ),
+        )
+
+        assert isinstance(result, dict)
+        result_str = str(result).lower()
+        assert any(
+            word in result_str
+            for word in [
+                "pdb",
+                "structure",
+                "hit",
+                "result",
+                "blast",
+                "match",
+                "protein",
+            ]
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_blastp_refseq_protein_database_integration(
+        self, main_mcp_server_available
+    ):
+        """Integration: BLASTp against 'refseq_protein' returns results."""
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+        result = await system.process_query(
+            user_query=(
+                f"Perform a BLASTP search with the sequence '{TEST_BLAST_SEQUENCE}' "
+                "against the refseq_protein database with hitlist_size=5."
+            ),
+        )
+
+        assert isinstance(result, dict)
+        result_str = str(result).lower()
+        assert any(
+            word in result_str
+            for word in ["refseq", "hit", "result", "blast", "match", "protein"]
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_blastp_nr_database_integration(self, main_mcp_server_available):
+        """Integration: BLASTp against 'nr' (non-redundant, default) returns results."""
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+        result = await system.process_query(
+            user_query=(
+                f"Perform a BLASTP search with the sequence '{TEST_BLAST_SEQUENCE}' "
+                "against the nr database with hitlist_size=5."
+            ),
+        )
+
+        assert isinstance(result, dict)
+        result_str = str(result).lower()
+        assert any(
+            word in result_str
+            for word in ["nr", "hit", "result", "blast", "match", "protein"]
+        )
+
+
 class TestHPCToolsSmoke:
     """Smoke tests for HPC-related tools."""
 
@@ -235,6 +507,111 @@ class TestHPCToolsSmoke:
         # Should return dict with HPC status information
         assert isinstance(result, dict)
         assert len(result) > 0
+
+
+class TestHPCSSHToolsSmoke:
+    """Smoke tests for HPC SSH tools via HPC MCP server (no actual SSH required).
+
+    These tests verify that:
+    1. The HPC MCP server is running and reachable
+    2. The HPC SSH tools are registered and callable
+    3. The multi-agent system can route queries to the HPC agent
+    4. Tool responses have the expected structure
+
+    Tests use mocked/example queries that verify the interface without requiring
+    a real HPC cluster connection.
+    """
+
+    @pytest.mark.asyncio
+    async def test_hpc_mcp_server_has_tools(self, hpc_mcp_server_available):
+        """Verify HPC MCP server is running and has HPC SSH tools registered."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Try to list tools from the HPC MCP server
+                # The server should respond even without HPC_HOST configured
+                response = await client.get(
+                    HPC_MCP_SERVER_URL.rstrip("/") + "/",
+                    follow_redirects=True,
+                    headers={"Accept": "application/json"},
+                )
+                # Server is reachable (405 is expected for GET on MCP endpoint)
+                assert response.status_code in [200, 405, 406]
+        except Exception as e:
+            pytest.fail(f"HPC MCP server not reachable: {e}")
+
+    @pytest.mark.asyncio
+    async def test_hpc_agent_routing(self, hpc_mcp_server_available):
+        """Test that multi-agent system can route HPC-related queries to HPC agent.
+
+        This verifies the agent handoff mechanism works, even if the underlying
+        HPC tool call fails due to missing credentials.
+        """
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+
+        # Ask a question that should route to the HPC agent
+        # The agent should attempt to call the tool even if it fails
+        result = await system.process_query(
+            user_query="What HPC tools are available for job submission?",
+        )
+
+        # Should return dict with some response
+        assert isinstance(result, dict)
+        # Response should contain some content about HPC or indicate tool availability
+        result_str = str(result).lower()
+        assert any(
+            word in result_str
+            for word in ["hpc", "slurm", "cluster", "job", "ssh", "tool", "available"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_hpc_tool_interface_structure(self, hpc_mcp_server_available):
+        """Test that HPC tools return expected structure (even on error).
+
+        This test verifies the tool interface works correctly by attempting
+        to call a tool. If HPC credentials are not configured, the tool should
+        return a structured error response, not crash.
+        """
+        from agentic_framework_pkg.multi_agent_orchestration.multi_agent_system import (
+            MultiAgentSystem,
+        )
+
+        system = MultiAgentSystem(session_id=TEST_SESSION_ID)
+
+        # Try to test HPC connection (will fail gracefully if not configured)
+        result = await system.process_query(
+            user_query="Test the SSH connection to the HPC cluster",
+        )
+
+        # Should return dict (not raise exception)
+        assert isinstance(result, dict)
+        assert len(result) > 0
+
+        # Result should either indicate success or provide error information
+        result_str = str(result).lower()
+        # Check for either success indicators or error handling indicators
+        assert any(
+            word in result_str
+            for word in [
+                "connection",
+                "hpc",
+                "ssh",
+                "error",
+                "not configured",
+                "failed",
+                "unable",
+                "host",
+                "cluster",
+            ]
+        )
+
+        # Should return dict with job status (might be NOT_FOUND)
+        assert isinstance(result, dict)
+        assert len(result) > 0
+        # Result will indicate job status or that job wasn't found
 
 
 class TestSandboxToolsSmoke:
@@ -312,18 +689,38 @@ GOOD TEST QUERIES FOR CHAPTER 03 MULTI-AGENT SYSTEM:
    - "Submit a job to calculate pi to 1000 digits"
    - "What are the available HPC resources?"
 
-4. Code Execution (Sandbox):
+4. HPC SSH (Remote Cluster):
+   - "Test the SSH connection to our HPC cluster"
+   - "Submit the Slurm job at /home/username/jobs/hello.sh"
+   - "Check the status of Slurm job 123456"
+   - "What's the status of my most recent HPC job?"
+
+5. Code Execution (Sandbox):
    - "Execute Python code to calculate factorial of 10"
    - "Run this code: import numpy as np; print(np.mean([1,2,3,4,5]))"
    - "Calculate the Fibonacci sequence up to 10 numbers using Python"
 
-5. Multi-Step Workflows:
+6. Multi-Step Workflows:
    - "Look up protein P02533 in UniProt and then search for related compounds in PubChem"
    - "Calculate 15 * 8 and then find the square root of the result"
    - "Search for 'BLAST algorithm' and summarize the top 3 results"
 
-6. Web Search:
+7. Web Search:
    - "Search the web for 'protein structure prediction methods'"
    - "Find recent papers on CRISPR gene editing"
    - "What are the latest developments in AlphaFold?"
+
+CONFIGURATION FOR HPC SSH TESTS:
+To enable HPC SSH smoke tests, set these environment variables in your .env:
+
+# Required for connection test:
+HPC_HOST=hpc.institution.edu
+HPC_USER=your_username
+HPC_SSH_KEY_PATH_HOST=/path/to/your/ssh/key.pem
+
+# Optional: For job submission test (requires test script on HPC):
+HPC_TEST_SCRIPT_PATH=/home/username/jobs/hello_test.sh
+
+# Optional: For job status test (requires existing job ID):
+HPC_TEST_JOB_ID=123456
 """

@@ -72,7 +72,8 @@ celerybeat.pid
 # Environments - IMPORTANT:.env should be ignored
 .env
 .env.*
-!.env.example # Keep example files
+# Keep example template files (note: inline comments are invalid in .gitignore)
+!.env.example
 
 # Docker
 docker-compose.override.yml

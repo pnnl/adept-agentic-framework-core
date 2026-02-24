@@ -39,6 +39,9 @@ from .mcp_langchain_tools import (
     get_mcp_run_video_transcription_tool_langchain,  # Import HPC Video Transcription tool
     get_mcp_execute_code_tool_langchain,  # Import Sandbox Code Execution tool
     get_mcp_gitxray_scan_tool_langchain,  # Import HPC GitXRay Scan tool
+    get_mcp_test_hpc_connection_tool_langchain,  # Import HPC SSH connection test tool
+    get_mcp_submit_slurm_job_tool_langchain,  # Import HPC Slurm job submission tool
+    get_mcp_check_slurm_job_status_tool_langchain,  # Import HPC Slurm job status tool
     get_mcp_create_multi_agent_session_tool_langchain,  # Multi-agent tool
     get_mcp_generate_plan_for_multi_agent_task_tool_langchain,  # Multi-agent tool
     get_mcp_execute_approved_plan_tool_langchain,  # Multi-agent tool
@@ -152,6 +155,15 @@ class ScientificWorkflowAgent:
             get_mcp_gitxray_scan_tool_langchain(
                 mcp_session_id=agent_session_id
             ),  # Add HPC GitXRay Scan tool
+            get_mcp_test_hpc_connection_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC SSH connection test tool
+            get_mcp_submit_slurm_job_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC Slurm job submission tool
+            get_mcp_check_slurm_job_status_tool_langchain(
+                mcp_session_id=agent_session_id
+            ),  # Add HPC Slurm job status tool
             get_mcp_create_multi_agent_session_tool_langchain(
                 mcp_session_id=agent_session_id
             ),  # Multi-agent tool
@@ -194,7 +206,9 @@ class ScientificWorkflowAgent:
             "run a BLAST search pipeline on a dedicated HPC server (RunNextflowBlastPipelineHPC) for potentially larger or custom database searches; "  # semicolon added
             "and transcribe and summarize videos (RunVideoTranscriptionPipelineHPC) using a video URL or an absolute server-accessible file path (e.g., /app/data/uploaded_files/my_video.mp4). This tool also indexes the transcript, making it queryable via its returned file_id using QueryProcessedDocumentData. "
             "retrieve information from uploaded documents (CSVs, PDFs, DOCX, images, TXT, TEX) once they are processed and have a file_id (QueryProcessedDocumentData), list previously uploaded and processed files (ListUploadedFiles), "
-            "execute arbitrary code in a secure sandbox (ExecuteCode) for languages like python, javascript, or shell. For Python, you can generate plots by setting the 'generate_plot' parameter to True. This can create static images (e.g., with matplotlib) or interactive HTML plots (e.g., with plotly). For Python plotting, ensure you explicitly create a figure object (e.g., 'fig, ax = plt.subplots()') and avoid calling 'plt.show()'. The figure object should be the last expression in your code block for it to be captured. Streamlit renders these figures using 'st.pyplot(fig)'. You can also specify a custom Docker image with the 'sandbox_image' parameter; and scan public GitHub repositories for secrets (ScanGithubRepositoryForSecrets). "
+            "execute arbitrary code in a secure sandbox (ExecuteCode) for languages like python, javascript, or shell. For Python, you can generate plots by setting the 'generate_plot' parameter to True. This can create static images (e.g., with matplotlib) or interactive HTML plots (e.g., with plotly). For Python plotting, ensure you explicitly create a figure object (e.g., 'fig, ax = plt.subplots()') and avoid calling 'plt.show()'. The figure object should be the last expression in your code block for it to be captured. Streamlit renders these figures using 'st.pyplot(fig)'. You can also specify a custom Docker image with the 'sandbox_image' parameter; "
+            "scan public GitHub repositories for secrets (ScanGithubRepositoryForSecrets); "
+            "and connect to remote HPC clusters via SSH: test SSH connections (TestHPCConnection), submit Slurm batch jobs (SubmitSlurmJob), and check job status (CheckSlurmJobStatus). These HPC SSH tools connect to REMOTE clusters via SSH, not the local Nextflow container. "
             "You can also create and manage a team of expert AI agents (multi-agent team) for complex tasks. This is a complete lifecycle process. You can list all active sessions using 'ListActiveMultiAgentSessions' to see which teams are available. "
             "First, use 'CreateMultiAgentSession' to build a team with specific roles (e.g., chemist, data scientist). You will get a session ID back. "
             "Second, use 'GeneratePlanForMultiAgentTask' with that session ID to create a plan for the team's supervisor. When this tool returns a plan, you MUST display the entire plan to the user and ask for their approval before proceeding. "
