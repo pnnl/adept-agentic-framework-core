@@ -76,7 +76,6 @@ profile = "black"
 [tool.ruff]
 line-length = 88
 target-version = "py311" # Align with project's requires-python
-exclude = ["docs/"]
 
 [tool.ruff.lint]
 select = ["E"] #, "F", "I", "W", "C", "N", "D", "B", "T", "S", "A", "G"] # A common set of rules
