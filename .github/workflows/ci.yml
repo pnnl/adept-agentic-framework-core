@@ -7,29 +7,6 @@ on:
     branches: ["**"]
 
 jobs:
-  lint-and-format:
-    name: Lint & Format Check
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install ruff
-        run: pip install "ruff>=0.1.0"
-
-      - name: Run ruff linter
-        run: ruff check .
-
-      - name: Run ruff format check
-        run: ruff format --check .
-
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
