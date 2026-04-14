@@ -58,7 +58,7 @@ dev = [
     "pytest-mock>=3.0.0",
     "black>=23.0.0",
     "isort>=5.0.0",
-    "pip-audit>=2.5.0",
+    "ruff>=0.1.0",
 ]
 
 [project.scripts]
@@ -66,9 +66,6 @@ run-mcp-server = "agentic_framework_pkg.mcp_server.main:start_server_cli"
 run-mcp-hpc-server = "agentic_framework_pkg.hpc_mcp_server.main:start_hpc_server_cli"
 run-sandbox-server = "agentic_framework_pkg.sandbox_mcp_server.main:start_sandbox_server_cli"
 run-streamlit-harness = "agentic_framework_pkg.streamlit_app.main:start_harness_cli"
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.black]
 line-length = 88
