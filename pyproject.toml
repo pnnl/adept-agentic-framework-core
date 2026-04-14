@@ -14,7 +14,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "fastmcp>=2.6.0", # Check for the latest compatible version
     "mcp",
-    "litellm>=1.15.0", # Check for latest
+    "litellm>=1.83.0", # Check for latest
     #"langchain>=0.1.0",
     "langchain>=0.2.43",
     "langgraph>=0.0.8", # Added langgraph

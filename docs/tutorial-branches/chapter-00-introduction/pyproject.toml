@@ -13,7 +13,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "fastmcp>=2.6.0",
     "mcp",
-    "litellm>=1.15.0",
+    "litellm>=1.83.0",
     "langchain>=0.2.43",
     "langchain-openai",
     "langchain-community",
