@@ -50,7 +50,7 @@ dependencies = [
     "httpx", # For making robust HTTP requests to APIs
     "python-jose", # For JWT validation
     "python-keycloak", # For Keycloak admin operations
-    "aioredis", # For asynchronous Redis client
+    "redis>=5.0", # For asynchronous Redis client (redis.asyncio replaces deprecated aioredis)
     "langgraph-checkpoint-redis", # For Redis-backed LangGraph checkpointing
 ]
 

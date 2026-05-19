@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import ToolMessage
 from .agent_state import AgentState
 
+
 class AgentGraphBuilder:
     """Builds the custom LangGraph StateGraph for the ScientificWorkflowAgent.
 
@@ -32,7 +33,7 @@ class AgentGraphBuilder:
     Custom StateGraph (Our Current Approach)
 
     This approach involves manually defining every node (e.g., agent, action) and every edge (the logic that connects them).
-    
+
     * Robustness in Control and Flexibility:
        * Maximum Control: This is its greatest strength. We have complete authority over the data flow. We were able to create a _custom_tool_node to intercept the tool's
          output, sanitize it for the LLM, and store the full version in our state. This is the kind of advanced, granular control that create_react_agent does not permit.
@@ -66,16 +67,16 @@ class AgentGraphBuilder:
 
     Our custom StateGraph is more robust for our advanced use case precisely because it is flexible enough to accommodate the "split-stream" strategy. We traded the
     simplicity of the utility function for the power and control of a custom-built graph, which was necessary to solve the problem at hand.
-    
+
     """
+
     def __init__(self, llm, tools: List[Any]):
         self.llm = llm
         self.tools = tools
 
     async def call_model(self, state: AgentState) -> dict:
         messages = state["messages"]
-        response = await self.llm.ainvoke(messages)
-        ai_message = response.generations[0].message
+        ai_message = await self.llm.ainvoke(messages)
         return {"messages": [ai_message]}
 
     def should_continue(self, state: AgentState) -> str:
@@ -104,14 +105,20 @@ class AgentGraphBuilder:
 
         The sanitization is designed to be dormant unless it sees the specific signature of a plot-generating tool, ensuring it doesn't interfere with any other part of the
         workflow.
-        
+
         """
-        if isinstance(output, dict) and "plots" in output and isinstance(output["plots"], list):
+        if (
+            isinstance(output, dict)
+            and "plots" in output
+            and isinstance(output["plots"], list)
+        ):
             sanitized_plots = []
             for plot in output["plots"]:
                 if isinstance(plot, dict) and "content_base64" in plot:
                     sanitized_plot = plot.copy()
-                    sanitized_plot["content_base64"] = f"<{sanitized_plot.get('format', 'image').upper()} data omitted, use plot_url>"
+                    sanitized_plot["content_base64"] = (
+                        f"<{sanitized_plot.get('format', 'image').upper()} data omitted, use plot_url>"
+                    )
                     sanitized_plots.append(sanitized_plot)
             output["plots"] = sanitized_plots
         return output
@@ -119,23 +126,30 @@ class AgentGraphBuilder:
     async def _custom_tool_node(self, state: AgentState) -> dict:
         tool_messages_for_llm = []
         full_tool_outputs_for_state = []
-        last_message = state['messages'][-1]
-        
+        last_message = state["messages"][-1]
+
         for tool_call in last_message.tool_calls:
-            tool_to_call = next((t for t in self.tools if t.name == tool_call["name"]), None)
+            tool_to_call = next(
+                (t for t in self.tools if t.name == tool_call["name"]), None
+            )
             if not tool_to_call:
                 raise ValueError(f"Tool '{tool_call['name']}' not found.")
-            
+
             raw_output_str = await tool_to_call.ainvoke(tool_call["args"])
             raw_output_dict = json.loads(raw_output_str)
             full_tool_outputs_for_state.append(raw_output_dict)
 
             sanitized_output_dict = self._sanitize_tool_output(raw_output_dict)
             sanitized_output_str = json.dumps(sanitized_output_dict)
-            
-            tool_messages_for_llm.append(ToolMessage(content=sanitized_output_str, tool_call_id=tool_call['id']))
 
-        return {"messages": tool_messages_for_llm, "full_tool_outputs": full_tool_outputs_for_state}
+            tool_messages_for_llm.append(
+                ToolMessage(content=sanitized_output_str, tool_call_id=tool_call["id"])
+            )
+
+        return {
+            "messages": tool_messages_for_llm,
+            "full_tool_outputs": full_tool_outputs_for_state,
+        }
 
     def build(self) -> StateGraph:
         """Constructs and returns the StateGraph."""

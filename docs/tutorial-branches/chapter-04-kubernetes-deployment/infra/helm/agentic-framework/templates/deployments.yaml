@@ -311,6 +311,10 @@ spec:
           env:
             - name: SANDBOX_BACKEND
               value: {{ .Values.sandbox_mcp_server.backend | lower | quote }}
+            {{- if eq (lower .Values.sandbox_mcp_server.backend) "nsjail" }}
+            - name: NSJAIL_BINARY_PATH
+              value: "/usr/local/bin/nsjail"
+            {{- end }}
             {{- if eq (lower .Values.sandbox_mcp_server.backend) "kubernetes" }}
             - name: POD_NAMESPACE
               valueFrom:

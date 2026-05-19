@@ -101,15 +101,16 @@ sandbox_mcp_server:
   service:
     type: ClusterIP
     port: 8082
-  # -- Backend for code execution. Options: "kubernetes" or "docker".
+  # -- Backend for code execution. Options: "kubernetes", "docker", or "nsjail".
   # "kubernetes": Executes code in ephemeral pods. Requires RBAC permissions. More secure for clusters.
   # "docker": Uses Docker-out-of-Docker. Requires privileged mode and mounting the host's docker socket. Simpler for local dev.
-  backend: "kubernetes" # <-- SET THIS TO "docker" FOR YOUR LOCAL DOCKER DESKTOP SETUP
+  # "nsjail": Uses Docker-out-of-Docker with nsjail process-level isolation (namespace, network, resource limits).
+  backend: "kubernetes" # <-- SET THIS TO "nsjail" FOR LOCAL DOCKER DESKTOP WITH FULL ISOLATION
 
   # -- Settings for the 'docker' backend. These are ignored if backend is 'kubernetes'.
   dockerBackend:
-    # -- CRITICAL: Required for llm-sandbox (nsjail) to function with the docker backend.
-    # This grants the container extended privileges on the host machine.
+    # -- CRITICAL: Required for nsjail process isolation and Docker-out-of-Docker with the docker backend.
+    # nsjail needs CAP_SYS_ADMIN for namespace creation; Docker-out-of-Docker needs socket access.
     # Understand the security implications before enabling this in production.
     privileged: true
     # -- Path to the Docker socket on the host machine.

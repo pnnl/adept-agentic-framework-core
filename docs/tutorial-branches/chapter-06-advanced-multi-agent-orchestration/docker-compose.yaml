@@ -201,6 +201,12 @@ services:
       - HPC_MCP_SERVER=http://mcp_server:8080/mcp
       - VECTOR_DB_URL=http://vector_db_server:8001
       - REDIS_URL=redis://redis:6379/0
+      - SANDBOX_BACKEND=nsjail
+      - NSJAIL_BINARY_PATH=/usr/local/bin/nsjail
+    # CRITICAL: The 'privileged' flag serves two purposes:
+    #   1. Enables nsjail to create Linux namespaces (user/pid/mount/net) for process isolation.
+    #   2. Enables Docker-in-Docker: the sandbox MCP server spawns Docker containers via the
+    #      host Docker socket for plot-capturing executions (ArtifactSandboxSession).
     privileged: true
     ports:
       - "8082:8082"
