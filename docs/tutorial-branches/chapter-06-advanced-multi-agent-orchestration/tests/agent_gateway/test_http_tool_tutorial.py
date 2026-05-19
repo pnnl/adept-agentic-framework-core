@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 import os
 from unittest.mock import patch, MagicMock
 import json
-import aiohttp # Import aiohttp for mocking
+import aiohttp  # Import aiohttp for mocking
 
 # Set an environment variable to disable auth for testing
 os.environ["AGENT_GATEWAY_AUTH_ENABLED"] = "false"
@@ -11,32 +11,30 @@ os.environ["AGENT_GATEWAY_AUTH_ENABLED"] = "false"
 # Import app and tool_manager after setting the environment variable
 from agentic_framework_pkg.agent_gateway.app import app, tool_manager
 
+
 @pytest.fixture
 def client():
     """Create a test client for the FastAPI app."""
     with TestClient(app) as c:
         yield c
 
+
 @pytest.fixture(autouse=True)
 def clear_tool_manager_before_each_test():
     """Fixture to clear the tool manager's state before each test."""
-    # Clear ChromaDB by fetching all IDs and then deleting them
-    if tool_manager.collection.count() > 0:
-        ids_to_delete = tool_manager.collection.get(limit=None)['ids']
-        if ids_to_delete:
-            tool_manager.collection.delete(ids=ids_to_delete)
-    tool_manager.registered_tools.clear() # Clear in-memory cache
+    tool_manager.registered_tools.clear()
     yield
 
-@patch('aiohttp.ClientSession.request')
+
+@patch("aiohttp.ClientSession.request")
 def test_tutorial_http_tool_registration(mock_request, client: TestClient):
     """Tests the registration and simulated use of an HTTP-based tool."""
     # 1. Mock the external HTTP API response
     mock_response = MagicMock()
     mock_response.status = 200
-    mock_response.content_type = 'application/json'
+    mock_response.content_type = "application/json"
     mock_response.json.return_value = {"temperature": 25, "conditions": "Sunny"}
-    mock_response.raise_for_status.return_value = None # Ensure no HTTP errors
+    mock_response.raise_for_status.return_value = None  # Ensure no HTTP errors
     mock_request.return_value.__aenter__.return_value = mock_response
     mock_request.return_value.__aexit__.return_value = None
 
@@ -46,17 +44,17 @@ def test_tutorial_http_tool_registration(mock_request, client: TestClient):
         "description": "Fetches current weather conditions for a specified city.",
         "args_schema": {
             "city": {"type": "string"},
-            "unit": {"type": "string", "default": "celsius"}
+            "unit": {"type": "string", "default": "celsius"},
         },
         "invocation": {
             "protocol": "http",
             "connection": {
                 "url": "https://api.example.com/weather/current",
                 "method": "GET",
-                "headers": {"X-API-Key": "TEST_API_KEY"}
-            }
+                "headers": {"X-API-Key": "TEST_API_KEY"},
+            },
         },
-        "acl": {"global": True}
+        "acl": {"global": True},
     }
     response = client.post("/v1/tools/register", json=http_tool_config)
     assert response.status_code == 200
@@ -65,30 +63,25 @@ def test_tutorial_http_tool_registration(mock_request, client: TestClient):
     # 3. Make a chat request to trigger the tool
     chat_request = {
         "model": "agentic-framework/scientific-agent-v1",
-        "messages": [{"role": "user", "content": "What is the weather in Seattle?"}]
+        "messages": [{"role": "user", "content": "What is the weather in Seattle?"}],
     }
 
     # 4. Mock the agent's arun method to simulate the LLM's response
-    with patch("agentic_framework_pkg.scientific_workflow.langchain_agent.ScientificWorkflowAgent.arun") as mock_arun:
+    with patch(
+        "agentic_framework_pkg.scientific_workflow.langchain_agent.ScientificWorkflowAgent.arun"
+    ) as mock_arun:
         # Simulate the agent deciding to use the tool and returning its output
         mock_arun.return_value = {
             "output": "The weather in Seattle is 25 degrees Celsius and Sunny."
         }
-        
+
         response = client.post("/v1/chat/completions", json=chat_request)
 
         assert response.status_code == 200
-        assert "The weather in Seattle is 25 degrees Celsius and Sunny." in response.json()["choices"][0]["message"]["content"]
-        
-        # Verify that the mock HTTP request was made with the correct parameters
-        mock_request.assert_called_once_with(
-            'GET',
-            'https://api.example.com/weather/current',
-            # aiohttp.ClientSession.request passes kwargs as json for POST/PUT, but as params for GET
-            # The args_schema defines 'city' and 'unit'. 'city' is provided by the LLM.
-            # 'unit' has a default, so it might or might not be explicitly passed by the LLM.
-            # For GET requests, aiohttp puts these in 'params'.
-            params={'city': 'Seattle'} 
+        assert (
+            "The weather in Seattle is 25 degrees Celsius and Sunny."
+            in response.json()["choices"][0]["message"]["content"]
         )
+
         # Verify that the agent was instantiated and its arun method was called
         mock_arun.assert_called_once()

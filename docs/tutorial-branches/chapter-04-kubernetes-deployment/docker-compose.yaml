@@ -133,11 +133,13 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL:-DEBUG}
       - MCP_SERVER_URL_FOR_LANGCHAIN=http://mcp_server:8080/mcp
       - HPC_MCP_SERVER_URL_FOR_LANGCHAIN=http://mcp_server:8080/mcp # Set the exact var name used by mcp_langchain_tools.py; but point to the other MCP server that hosts the RAG tools
-    # CRITICAL: The 'privileged' flag is required for llm-sandbox (nsjail) to function correctly.
-    # This grants the container extended privileges on the host machine.
+      - SANDBOX_BACKEND=nsjail
+      - NSJAIL_BINARY_PATH=/usr/local/bin/nsjail
+    # CRITICAL: The 'privileged' flag serves two purposes:
+    #   1. Enables nsjail to create Linux namespaces (user/pid/mount/net) for process isolation.
+    #   2. Enables Docker-in-Docker: the sandbox MCP server spawns Docker containers via the
+    #      host Docker socket for plot-capturing executions (ArtifactSandboxSession).
     # Understand the security implications before enabling this in production environments.
-    # An alternative is to use 'cap_add' with specific capabilities like SYS_ADMIN, SETUID, SETGID,
-    # but 'privileged' is the simplest way to ensure it works.
     privileged: true
     ports:
       - "8082:8082"

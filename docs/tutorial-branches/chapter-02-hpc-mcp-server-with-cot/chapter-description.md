@@ -14,7 +14,7 @@ This chapter enhances the ADEPT framework by introducing a dedicated MCP server 
 
 ## Key Additions
 
-- **HPC MCP Server**: A new, separate `fastmcp` server is added to host computationally intensive tools like [Nextflow](#references) pipelines for [BLAST](#references) searches, video processing with [Whisper](#references), and code repository security scanning with [GitXRay](#references). This separation of concerns prevents long-running tasks from blocking the main MCP server. The server is built with [FastAPI](#references) and run with [Uvicorn](#references).
+- **HPC MCP Server**: A new, separate `fastmcp` server is added to host computationally intensive tools like [Nextflow](#references) pipelines for [BLAST](#references) searches and video processing with [Whisper](#references). This separation of concerns prevents long-running tasks from blocking the main MCP server. The server is built with [FastAPI](#references) and run with [Uvicorn](#references).
 - **LangGraph Integration**: The agent is upgraded from a simple agent to a more complex reasoning engine built with [LangGraph](#references) and [LangChain](#references). This allows for more explicit and controllable multi-step reasoning, which is a more advanced form of [Chain-of-Thought](#references). The agent can now create more complex plans and execute them.
 - **Stateful Interactions**: The use of `mcp_session_id` is continued and becomes more important for tracking the state of these more complex, multi-step workflows. We use [ChromaDB](#references) for session state management.
 
@@ -38,7 +38,6 @@ This chapter utilizes several key technologies:
 - **[PubChemPy](#references)**: A Python wrapper for the PubChem PUG REST API.
 - **[UniProt](#references)**: A comprehensive resource for protein sequence and annotation data.
 - **[Biopython](#references)**: A set of freely available tools for biological computation written in Python.
-- **[GitXRay](#references)**: A security tool for GitHub repositories.
 
 ## References
 
@@ -58,7 +57,6 @@ This chapter introduces two major advancements:
 - [ChromaDB](https://docs.trychroma.com/)
 - [Docker](https://docs.docker.com/)
 - [FastAPI](https://fastapi.tiangolo.com/)
-- [GitXRay](https://www.gitxray.com/)
 - [High-Performance Computing (HPC)](https://www.hpc.llnl.gov/documentation/tutorials)
 - [LangChain](https://www.langchain.com/)
 - [LangGraph](https://langchain-ai.github.io/langgraph/)

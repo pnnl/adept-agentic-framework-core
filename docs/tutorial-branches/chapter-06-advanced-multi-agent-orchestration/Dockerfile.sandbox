@@ -1,5 +1,25 @@
-# Use the official Python image as a parent image
+# ── nsjail build stage ────────────────────────────────────────────────────────
+FROM python:3.11-slim AS nsjail-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf bison flex gcc g++ git \
+    libprotobuf-dev libnl-route-3-dev libtool \
+    make pkg-config protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth=1 https://github.com/google/nsjail.git /nsjail-src \
+    && cd /nsjail-src \
+    && make -j"$(nproc)" \
+    && cp nsjail /usr/local/bin/nsjail
+
+# Verify nsjail binary is functional
+RUN nsjail --help > /dev/null 2>&1 || (echo "nsjail binary check failed" && exit 1)
+
+# ── main sandbox image ─────────────────────────────────────────────────────────
 FROM python:3.11-slim
+
+# Copy nsjail binary from build stage
+COPY --from=nsjail-builder /usr/local/bin/nsjail /usr/local/bin/nsjail
 
 # Create the non-root user and group in the final stage
 # Use build arguments to allow for templatization and customization
@@ -8,7 +28,7 @@ ARG APP_GROUP=appuser
 ARG APP_UID=1000
 ARG APP_GID=1000 
 ARG DOCKER_GID=999 # Add a build argument for the Docker GID
- 
+
 RUN addgroup --system --gid ${APP_GID} ${APP_GROUP} && \
     adduser --system --uid ${APP_UID} --ingroup ${APP_GROUP} --disabled-password --gecos "" ${APP_USER}
 
@@ -25,9 +45,10 @@ WORKDIR ${HOME}
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies required for llm-sandbox (nsjail) and other tools
+# Install system dependencies for llm-sandbox (Docker-out-of-Docker) and nsjail runtime libs
 # build-essential is needed for some pip packages that compile C code. docker.io provides the docker client.
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git docker.io && \
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential git docker.io \
+    libprotobuf32 libnl-route-3-200 && \
     apt-get clean && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*

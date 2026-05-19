@@ -15,9 +15,11 @@ from .auth import validate_jwt, AuthCredentials, JWTValidationError
 # Load environment variables from .env file at the very beginning
 load_dotenv()
 
-from agentic_framework_pkg.scientific_workflow.langchain_agent import ScientificWorkflowAgent # noqa: E402
-from agentic_framework_pkg.logger_config import get_logger # noqa: E402
-from .stdio_tool_wrapper import create_stdio_tool, EchoToolSchema # noqa: E402
+from agentic_framework_pkg.scientific_workflow.langchain_agent import (
+    ScientificWorkflowAgent,
+)  # noqa: E402
+from agentic_framework_pkg.logger_config import get_logger  # noqa: E402
+from .stdio_tool_wrapper import create_stdio_tool, EchoToolSchema  # noqa: E402
 from .external_tool_manager import ExternalToolManager
 
 logger = get_logger(__name__)
@@ -26,11 +28,16 @@ tool_manager = ExternalToolManager()
 
 # --- Authentication Setup ---
 AUTH_ENABLED = os.getenv("AGENT_GATEWAY_AUTH_ENABLED", "false").lower() == "true"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False) # auto_error=False makes it optional
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="token", auto_error=False
+)  # auto_error=False makes it optional
 
-async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[AuthCredentials]:
+
+async def get_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+) -> Optional[AuthCredentials]:
     if not AUTH_ENABLED:
-        return None # No auth, no user
+        return None  # No auth, no user
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -40,16 +47,17 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Opt
             user_id=payload.get("sub"),
             username=payload.get("preferred_username"),
             groups=payload.get("groups", []),
-            token=token
+            token=token,
         )
     except JWTValidationError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
     title="Agent Gateway",
     description="A unified, OpenAI-compatible entry point for interacting with various agentic framework configurations. This gateway allows external clients like OpenWebUI and n8n to use the framework's agents without needing to understand the internal architecture.",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # --- Agent Configurations ---
@@ -66,26 +74,36 @@ AGENT_CONFIGURATIONS = {
                 "name": "echo_message_tool",
                 "description": "A simple tool that echoes back a message. Useful for testing the stdio tool integration.",
                 "command": ["python3", "tools/echo_tool.py"],
-                "working_directory": "/app/agentic_framework_pkg/agent_gateway", # Relative to container's /app
-                "args_schema": EchoToolSchema
+                "working_directory": "/app/agentic_framework_pkg/agent_gateway",  # Relative to container's /app
+                "args_schema": EchoToolSchema,
             }
-        ]
+        ],
     },
     "agentic-framework/n8n-summary-agent": {
         "description": "A specialized agent with a system prompt optimized for summarizing data and providing concise answers suitable for n8n workflows.",
         "agent_class": ScientificWorkflowAgent,
         "system_prompt": "You are an expert summarization agent. Your goal is to provide clear, concise summaries of the information you find. Do not provide long explanations or conversational filler. Your output will be used in automated workflows.",
-        "stdio_tools": [] # No stdio tools for this agent
+        "stdio_tools": [],  # No stdio tools for this agent
     },
 }
 
 
 # CORS Configuration
 origins = [
-    "http://localhost", "http://localhost:3000", "http://localhost:8080", "http://localhost:8081",
-    "http://localhost:8083", "http://localhost:8902", "http://127.0.0.1", "http://127.0.0.1:8902",
-    "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:8081", "http://127.0.0.1:8082",
-    "http://host.docker.internal", "http://host.docker.internal:3000",
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://localhost:8083",
+    "http://localhost:8902",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8902",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:8081",
+    "http://127.0.0.1:8082",
+    "http://host.docker.internal",
+    "http://host.docker.internal:3000",
 ]
 
 app.add_middleware(
@@ -96,21 +114,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.on_event("startup")
 async def startup_event():
     """
-    Initializes the global tool_manager asynchronously on application startup.
+    Initializes the global tool_manager's Redis connection on application startup.
     This ensures that the ExternalToolManager's Redis client is connected
-    and tools are loaded from Redis and file configurations before the
-    application starts serving requests.
+    and tools are loaded from Redis before the application starts serving requests.
     """
-    global tool_manager
-    tool_manager = await ExternalToolManager()
+    await tool_manager.connect_redis()
+
 
 sessions: Dict[str, Any] = {}
 
+
 def format_sse_chunk(data: Dict[str, Any]) -> str:
     return f"data: {json.dumps(data)}\n\n"
+
 
 @app.get("/v1/models", summary="List Available Agent Models")
 async def list_models():
@@ -120,7 +140,7 @@ async def list_models():
     clients like OpenWebUI and n8n to discover and select from the available agents.
     """
     logger.info("Received request on /v1/models")
-    
+
     model_list = []
     for model_id, config in AGENT_CONFIGURATIONS.items():
         model_entry = {
@@ -136,7 +156,7 @@ async def list_models():
         "object": "list",
         "data": model_list,
     }
-    
+
     logger.info(f"Sending models response: {response_data}")
     return JSONResponse(content=response_data)
 
@@ -160,7 +180,7 @@ async def get_model(model_id: str):
         "owned_by": "AgenticFramework",
         "description": config.get("description"),
     }
-    
+
     logger.info(f"Sending model response: {model_entry}")
     return JSONResponse(content=model_entry)
 
@@ -184,10 +204,14 @@ async def get_agent_tools(model_id: str):
       JSON format.
     """
     logger.info(f"Received request on /tools/{model_id}")
-    logger.info(f"model_id (type): {type(model_id)}, (repr): {repr(model_id)}, length: {len(model_id)}")
-    
+    logger.info(
+        f"model_id (type): {type(model_id)}, (repr): {repr(model_id)}, length: {len(model_id)}"
+    )
+
     config_keys = list(AGENT_CONFIGURATIONS.keys())
-    logger.info(f"AGENT_CONFIGURATIONS keys (types): {[type(k) for k in config_keys]}, (repr): {[repr(k) for k in config_keys]}, lengths: {[len(k) for k in config_keys]}")
+    logger.info(
+        f"AGENT_CONFIGURATIONS keys (types): {[type(k) for k in config_keys]}, (repr): {[repr(k) for k in config_keys]}, lengths: {[len(k) for k in config_keys]}"
+    )
     logger.info(f"model_id in AGENT_CONFIGURATIONS: {model_id in AGENT_CONFIGURATIONS}")
 
     if model_id not in AGENT_CONFIGURATIONS:
@@ -196,37 +220,40 @@ async def get_agent_tools(model_id: str):
 
     try:
         config = AGENT_CONFIGURATIONS[model_id]
-        
+
         # Create stdio tools if configured
         additional_tools = []
         if "stdio_tools" in config:
             for tool_config in config["stdio_tools"]:
                 stdio_tool = create_stdio_tool(**tool_config)
                 additional_tools.append(stdio_tool)
-        
+
         # Add externally registered tools
         additional_tools.extend(tool_manager.get_all_tools())
 
         # Temporarily instantiate the agent to inspect its tools
         agent_instance = config["agent_class"](
             mcp_session_id="dummy_session_for_inspection",
-            additional_tools=additional_tools
+            additional_tools=additional_tools,
         )
-        
+
         tools_list = []
         for tool in agent_instance.tools:
             tool_details = {
                 "name": tool.name,
                 "description": tool.description,
-                "parameters": tool.args_schema.schema() if tool.args_schema else {}
+                "parameters": tool.args_schema.schema() if tool.args_schema else {},
             }
             tools_list.append(tool_details)
-            
+
         return JSONResponse(content={"model_id": model_id, "tools": tools_list})
 
     except Exception as e:
-        logger.error(f"Failed to inspect tools for model {model_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to inspect tools for model {model_id}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve agent tools.")
+
 
 @app.post("/v1/tools/register", summary="Register an External Tool")
 async def register_tool(request: Request):
@@ -323,7 +350,10 @@ async def register_tool(request: Request):
         await tool_manager.register_tool(config)
         protocol = config.get("invocation", {}).get("protocol", "unknown")
         return JSONResponse(
-            content={"status": "success", "message": f"Tool '{config.get('name')}' registered successfully using protocol '{protocol}'."}
+            content={
+                "status": "success",
+                "message": f"Tool '{config.get('name')}' registered successfully using protocol '{protocol}'.",
+            }
         )
     except ValueError as e:
         logger.error(f"Invalid tool registration config: {e}")
@@ -333,9 +363,11 @@ async def register_tool(request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to register tool. {e}")
 
 
-
 @app.post("/v1/chat/completions", summary="Process Chat Request")
-async def chat_completions(request: Request, current_user: Optional[AuthCredentials] = Depends(get_current_user)):
+async def chat_completions(
+    request: Request,
+    current_user: Optional[AuthCredentials] = Depends(get_current_user),
+):
     """
     The main chat endpoint, compatible with the OpenAI `/v1/chat/completions` API.
 
@@ -425,7 +457,10 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
         model_id = body.get("model")
         if not model_id or model_id not in AGENT_CONFIGURATIONS:
             available_models = list(AGENT_CONFIGURATIONS.keys())
-            raise HTTPException(status_code=400, detail=f"Invalid or missing model ID. Available models: {available_models}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid or missing model ID. Available models: {available_models}",
+            )
 
         messages = body.get("messages", [])
         if not messages:
@@ -436,8 +471,13 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
         conversation_id = body.get("conversation_id", str(uuid.uuid4()))
         stream_requested = body.get("stream", False)
 
-        if conversation_id not in sessions or sessions[conversation_id].get("model_id") != model_id:
-            logger.info(f"New conversation for model '{model_id}'. Session ID: {conversation_id}")
+        if (
+            conversation_id not in sessions
+            or sessions[conversation_id].get("model_id") != model_id
+        ):
+            logger.info(
+                f"New conversation for model '{model_id}'. Session ID: {conversation_id}"
+            )
             config = AGENT_CONFIGURATIONS[model_id]
 
             # Create stdio tools if configured
@@ -449,7 +489,9 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
 
             # Add externally registered tools based on user's ACL
             if current_user:
-                authorized_tools = await tool_manager.get_authorized_tools(current_user.user_id, current_user.groups)
+                authorized_tools = await tool_manager.get_authorized_tools(
+                    current_user.user_id, current_user.groups
+                )
                 additional_tools.extend(authorized_tools)
             else:
                 # If auth is disabled or no user, get only global tools
@@ -457,10 +499,9 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
                 additional_tools.extend(global_tools)
 
             agent = config["agent_class"](
-                mcp_session_id=conversation_id,
-                additional_tools=additional_tools
+                mcp_session_id=conversation_id, additional_tools=additional_tools
             )
-            
+
             if config.get("system_prompt"):
                 agent.formatted_system_prompt = config["system_prompt"]
 
@@ -478,14 +519,20 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
                 "object": "chat.completion.chunk",
                 "created": int(os.path.getctime(__file__)),
                 "model": model_id,
-                "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]
+                "choices": [
+                    {"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}
+                ],
             }
             yield format_sse_chunk(initial_chunk)
 
             # Get the full response from the agent
-            response_dict = await agent.arun(user_input=user_message, chat_history=chat_history_from_request)
-            agent_response = response_dict.get("output", "Agent did not provide a standard output.")
-            
+            response_dict = await agent.arun(
+                user_input=user_message, chat_history=chat_history_from_request
+            )
+            agent_response = response_dict.get(
+                "output", "Agent did not provide a standard output."
+            )
+
             # Stream the response character by character
             for char in agent_response:
                 char_chunk = {
@@ -493,7 +540,9 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
                     "object": "chat.completion.chunk",
                     "created": int(os.path.getctime(__file__)),
                     "model": model_id,
-                    "choices": [{"index": 0, "delta": {"content": char}, "finish_reason": None}]
+                    "choices": [
+                        {"index": 0, "delta": {"content": char}, "finish_reason": None}
+                    ],
                 }
                 yield format_sse_chunk(char_chunk)
                 await asyncio.sleep(0.01)
@@ -508,29 +557,42 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
                 "usage": {
                     "prompt_tokens": len(user_message.split()),
                     "completion_tokens": len(agent_response.split()),
-                    "total_tokens": len(user_message.split()) + len(agent_response.split())
-                }
+                    "total_tokens": len(user_message.split())
+                    + len(agent_response.split()),
+                },
             }
             yield format_sse_chunk(final_chunk)
             yield "data: [DONE]\n\n"
 
         if stream_requested:
-            return StreamingResponse(generate_response_chunks(), media_type="text/event-stream")
+            return StreamingResponse(
+                generate_response_chunks(), media_type="text/event-stream"
+            )
         else:
-            response_dict = await agent.arun(user_input=user_message, chat_history=chat_history_from_request)
-            agent_response = response_dict.get("output", "Agent did not provide a standard output.")
-            
+            response_dict = await agent.arun(
+                user_input=user_message, chat_history=chat_history_from_request
+            )
+            agent_response = response_dict.get(
+                "output", "Agent did not provide a standard output."
+            )
+
             response_data = {
                 "id": f"chatcmpl-{uuid.uuid4()}",
                 "object": "chat.completion",
                 "created": int(os.path.getctime(__file__)),
                 "model": model_id,
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": agent_response},
-                    "finish_reason": "stop"
-                }],
-                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": agent_response},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
             }
             logger.info(f"Sending non-streamed response: {response_data}")
             return JSONResponse(content=response_data)
@@ -538,6 +600,7 @@ async def chat_completions(request: Request, current_user: Optional[AuthCredenti
     except Exception as e:
         logger.error(f"Error in /v1/chat/completions: {e}", exc_info=True)
         return JSONResponse(content={"detail": str(e)}, status_code=500)
+
 
 if __name__ == "__main__":
     port = int(os.getenv("AGENT_GATEWAY_PORT", "8081"))
